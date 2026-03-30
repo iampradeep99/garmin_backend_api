@@ -38,7 +38,9 @@
       "node_modules/pg/**/*",
       "node_modules/axios/**/*",
       "key.pem",
-      "cert.pem"
+      "cert.pem",
+	"views/**/*",
+      "public/**/*"
     ]
   }
 }

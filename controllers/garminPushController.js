@@ -6,6 +6,108 @@ const GarminAuth = require('../models/garminAuthModel');
 const GarminBloodPressure = require('../models/garminBloodPressure');
 const GarminHeartRate = require('../models/garminHeartRates');
 const GarminDailySummary = require('../models/garmindailySummary');
+const { sendGarminAlertEmail } = require('../common/garminAlertMail');
+
+function formatDateTime(value = new Date()) {
+  return new Date(value).toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
+function getRequestMeta(req, pushType, records) {
+  const userIds = records
+    .map((record) => record?.userId)
+    .filter(Boolean)
+    .slice(0, 5);
+
+  return {
+    pushType,
+    count: records.length,
+    userIds,
+    endpoint: req.originalUrl,
+    method: req.method,
+    ip: req.headers['x-forwarded-for'] || req.ip || req.socket?.remoteAddress || 'unknown',
+    receivedAt: formatDateTime()
+  };
+}
+
+function buildHtmlFromMeta(title, meta, extraLine = '') {
+  const userIdText = meta.userIds.length ? meta.userIds.join(', ') : 'No userId found';
+
+  return `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
+      <h2 style="margin-bottom: 12px;">${title}</h2>
+      <p><strong>Push Type:</strong> ${meta.pushType}</p>
+      <p><strong>Records:</strong> ${meta.count}</p>
+      <p><strong>Endpoint:</strong> ${meta.endpoint}</p>
+      <p><strong>Method:</strong> ${meta.method}</p>
+      <p><strong>IP:</strong> ${meta.ip}</p>
+      <p><strong>Received At:</strong> ${meta.receivedAt}</p>
+      <p><strong>User IDs:</strong> ${userIdText}</p>
+      ${extraLine ? `<p><strong>Details:</strong> ${extraLine}</p>` : ''}
+    </div>
+  `;
+}
+
+async function sendPushReceivedAlert(req, pushType, records) {
+  const meta = getRequestMeta(req, pushType, records);
+  const subject = `Garmin Push Received - ${pushType}`;
+  const userIdText = meta.userIds.length ? meta.userIds.join(', ') : 'No userId found';
+  const text = [
+    'Garmin push request received successfully.',
+    `Push Type: ${meta.pushType}`,
+    `Records: ${meta.count}`,
+    `Endpoint: ${meta.endpoint}`,
+    `Method: ${meta.method}`,
+    `IP: ${meta.ip}`,
+    `Received At: ${meta.receivedAt}`,
+    `User IDs: ${userIdText}`
+  ].join('\n');
+
+  const result = await sendGarminAlertEmail({
+    subject,
+    text,
+    html: buildHtmlFromMeta('Garmin push request received successfully.', meta)
+  });
+
+  if (!result.success) {
+    logger.warn(`Garmin push received email failed: ${result.error}`);
+  }
+}
+
+async function sendPushErrorAlert(req, pushType, records, error) {
+  const meta = getRequestMeta(req, pushType, records);
+  const errorMessage = error?.stack || error?.message || String(error);
+  const subject = `Garmin Push Error - ${pushType}`;
+  const userIdText = meta.userIds.length ? meta.userIds.join(', ') : 'No userId found';
+  const text = [
+    'Garmin push request failed while processing.',
+    `Push Type: ${meta.pushType}`,
+    `Records: ${meta.count}`,
+    `Endpoint: ${meta.endpoint}`,
+    `Method: ${meta.method}`,
+    `IP: ${meta.ip}`,
+    `Received At: ${meta.receivedAt}`,
+    `User IDs: ${userIdText}`,
+    `Error: ${errorMessage}`
+  ].join('\n');
+
+  const result = await sendGarminAlertEmail({
+    subject,
+    text,
+    html: buildHtmlFromMeta('Garmin push request failed while processing.', meta, errorMessage)
+  });
+
+  if (!result.success) {
+    logger.warn(`Garmin push error email failed: ${result.error}`);
+  }
+}
 
 // ─── Helper: resolve internal user_id from Garmin's encoded user id ───────────────────────────────────────────────────────────────
 async function getUserIdFromEncodedId(encodedUserId) {
@@ -44,11 +146,10 @@ async function getUserIdFromEncodedId(encodedUserId) {
 // ─── Push: Heart Rate Epochs ──────────────────────────────────────────────────
 async function pushHeartRateEpoch(req, res) {
   // Garmin sends encoded user id in each push. We need to map it to our internal user_id.
-  console.log("INCOMING userId values:", (req.body.epochs || []).map(x => x.userId));
+  const epochs = req.body.epochs || [];
+  console.log("INCOMING userId values:", epochs.map(x => x.userId));
   try {
     console.log("GARMIN PUSH - Heart Rate:", JSON.stringify(req.body, null, 2));
-
-    const epochs = req.body.epochs || [];
 
     for (const e of epochs) {
       const userId = await getUserIdFromEncodedId(e.userId);
@@ -63,10 +164,14 @@ async function pushHeartRateEpoch(req, res) {
       });
     }
 
+    logger.info(`Garmin push processed: heart-rate | count=${epochs.length}`);
+    void sendPushReceivedAlert(req, 'heart-rate', epochs);
+
     return res.status(200).send("OK");
   } catch (err) {
     console.error("PUSH ERROR DETAILS:", err.message, err);
     logger.error("Heart Rate Push Error", err);
+    void sendPushErrorAlert(req, 'heart-rate', epochs, err);
     return res.status(200).send("OK"); // always 200 so Garmin does not retry
   }
 }
@@ -74,11 +179,10 @@ async function pushHeartRateEpoch(req, res) {
 // ─── Push: Daily Summaries ────────────────────────────────────────────────────
 async function pushDailySummary(req, res) {
   // Garmin sends encoded user id in each push. We need to map it to our internal user_id.
-  console.log("INCOMING userId values:", ( req.body.dailies || []).map(x => x.userId));
+  const summaries = req.body.dailies || [];
+  console.log("INCOMING userId values:", summaries.map(x => x.userId));
   try {
     console.log("GARMIN PUSH - Daily Summary:", JSON.stringify(req.body, null, 2));
-
-    const summaries = req.body.dailies || [];
 
     for (const s of summaries) {
       const userId = await getUserIdFromEncodedId(s.userId);
@@ -110,10 +214,14 @@ async function pushDailySummary(req, res) {
       );
     }
 
+    logger.info(`Garmin push processed: summary | count=${summaries.length}`);
+    void sendPushReceivedAlert(req, 'summary', summaries);
+
     return res.status(200).send("OK");
   } catch (err) {
     console.error("PUSH ERROR DETAILS:", err.message, err);
     logger.error("Daily Summary Push Error", err);
+    void sendPushErrorAlert(req, 'summary', summaries, err);
     return res.status(200).send("OK");
   }
 }
@@ -121,11 +229,10 @@ async function pushDailySummary(req, res) {
 // ─── Push: Blood Pressure ─────────────────────────────────────────────────────
 async function pushBloodPressure(req, res) {
   // Garmin sends encoded user id in each push. We need to map it to our internal user_id.
-  console.log("INCOMING userId values:", (req.body.bloodPressureSummaries || []).map(x => x.userId));
+  const readings = req.body.bloodPressureSummaries || [];
+  console.log("INCOMING userId values:", readings.map(x => x.userId));
   try {
     console.log("GARMIN PUSH - Blood Pressure:", JSON.stringify(req.body, null, 2));
-
-    const readings = req.body.bloodPressureSummaries || [];
 
     for (const bp of readings) {
       const userId = await getUserIdFromEncodedId(bp.userId);
@@ -148,10 +255,14 @@ async function pushBloodPressure(req, res) {
       );
     }
 
+    logger.info(`Garmin push processed: bp | count=${readings.length}`);
+    void sendPushReceivedAlert(req, 'bp', readings);
+
     return res.status(200).send("OK");
   } catch (err) {
     console.error("PUSH ERROR DETAILS:", err.message, err);
     logger.error("Blood Pressure Push Error", err);
+    void sendPushErrorAlert(req, 'bp', readings, err);
     return res.status(200).send("OK");
   }
 }

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Server Status</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .container {
+      text-align: center;
+    }
+    .status {
+      font-size: 48px;
+      margin-bottom: 10px;
+      color: #22c55e;
+    }
+    .subtext {
+      font-size: 18px;
+      color: #cbd5f5;
+    }
+    .dot {
+      height: 12px;
+      width: 12px;
+      background-color: #22c55e;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="status">🚀 Server is Running</div>
+    <div class="subtext">
+      <span class="dot"></span>
+      Your backend is up and working on http://localhost:3002
+    </div>
+  </div>
+</body>
+</html>

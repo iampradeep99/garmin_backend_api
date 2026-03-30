@@ -1,0 +1,44 @@
+{
+  "name": "garminproject",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "nodemon server.js",
+    "dev": "nodemon server.js",
+    "seed": "node bin/seedDummyData.js",
+    "build:win": "pkg server.js --targets node16-win-x64 --output server-win.exe",
+    "build:linux": "pkg server.js --targets node16-linux-x64 --output server-linux",
+    "build:mac": "pkg server.js --targets node16-macos-x64 --output server-mac",
+    "build:all": "npm run build:win && npm run build:linux && npm run build:mac"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "~1.4.4",
+    "debug": "~2.6.9",
+    "dotenv": "^17.2.3",
+    "express": "~4.16.1",
+    "express-validator": "^7.3.1",
+    "http-errors": "~1.6.3",
+    "jade": "~1.11.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.0.0",
+    "mongoose": "^9.1.5",
+    "morgan": "~1.9.1",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.4",
+    "nodemon": "^3.1.11",
+    "pkg": "^5.8.1",
+    "winston": "^3.19.0"
+  },
+  "pkg": {
+    "assets": [
+      "**/*.env",
+      "**/*.sql",
+      "node_modules/pg/**/*",
+      "node_modules/axios/**/*",
+      "key.pem",
+      "cert.pem"
+    ]
+  }
+}

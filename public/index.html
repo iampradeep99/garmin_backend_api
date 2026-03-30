@@ -48,8 +48,14 @@
     <div class="status">🚀 Server is Running</div>
     <div class="subtext">
       <span class="dot"></span>
-      Your backend is up and working on http://localhost:3002
+      Your backend is up and working on 
+      <span id="serverUrl"></span>
     </div>
   </div>
+
+  <script>
+    // ✅ Dynamic URL (protocol + host + port auto detect)
+    document.getElementById("serverUrl").innerText = window.location.origin;
+  </script>
 </body>
 </html>

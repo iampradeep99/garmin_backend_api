@@ -23,6 +23,7 @@ const garminPushRouter = require('./routes/garminPush');
 const garminPingRouter = require('./routes/garminPing');
 const thresholdRouter = require('./routes/threshold');
 const buildRouter = require('./routes/builds');
+const adminRouter = require('./routes/admin');
 const statusReportUrl = process.env.STATUS_REPORT_URL || 'http://localhost:3005/status/report';
 const statusSharedSecret = process.env.STATUS_SHARED_SECRET || '';
 const statusPublicUrl = process.env.STATUS_PUBLIC_URL || 'http://localhost:3005/';
@@ -79,6 +80,7 @@ app.use('/api/garmin/push', garminPushRouter);
 app.use('/api/garmin/ping', garminPingRouter);
 app.use('/api/threshold', thresholdRouter);
 app.use('/api/builds', buildRouter);
+app.use('/api/admin', adminRouter);
 
 app.use((req, res, next) => {
   logger.warn(`404 Not Found: ${req.method} ${req.url}`);

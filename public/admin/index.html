@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Console</title>
+  <style>
+    :root {
+      --bg-1: #07131f;
+      --bg-2: #0d2434;
+      --bg-3: #153f59;
+      --accent: #61e7cf;
+      --accent-strong: #27d1ff;
+      --text: #eef9ff;
+      --muted: #99b6ca;
+      --line: rgba(255, 255, 255, 0.1);
+      --panel: rgba(10, 24, 37, 0.88);
+      --panel-strong: rgba(12, 28, 43, 0.96);
+      --shadow: 0 28px 90px rgba(0, 0, 0, 0.34);
+      --danger: #ff9d9d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(97, 231, 207, 0.18), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(39, 209, 255, 0.15), transparent 28%),
+        linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 48%, var(--bg-3) 100%);
+    }
+
+    .page {
+      width: min(1260px, calc(100% - 32px));
+      margin: 28px auto;
+      padding: 26px;
+      border-radius: 32px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(8, 20, 31, 0.94), rgba(10, 23, 35, 0.84));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(24px);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      border-radius: 28px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .hero {
+      padding: 34px;
+      position: sticky;
+      top: 26px;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      right: -70px;
+      top: -60px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(97, 231, 207, 0.24), rgba(97, 231, 207, 0));
+      filter: blur(16px);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px 0 14px;
+      font-size: clamp(38px, 4vw, 56px);
+      line-height: 0.95;
+      letter-spacing: -0.06em;
+    }
+
+    .gradient {
+      background: linear-gradient(90deg, #ffffff 0%, #d7fff5 42%, #7ae6ff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero-copy {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 17px;
+    }
+
+    .hero-stack {
+      display: grid;
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .hero-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .hero-label {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #8eb0c7;
+    }
+
+    .hero-value {
+      margin-top: 8px;
+      font-size: 20px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .workspace {
+      display: grid;
+      gap: 22px;
+    }
+
+    .auth-card,
+    .dashboard {
+      padding: 28px;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .section-text {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 15px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 22px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .label {
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #8eb0c7;
+    }
+
+    .input {
+      width: 100%;
+      padding: 15px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      outline: none;
+      font: inherit;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .input:focus {
+      border-color: rgba(97, 231, 207, 0.55);
+      box-shadow: 0 0 0 4px rgba(97, 231, 207, 0.12);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 20px;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 180ms ease, opacity 180ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary {
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-strong) 100%);
+      color: #031521;
+      font-weight: 800;
+      min-width: 170px;
+    }
+
+    .secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .message {
+      min-height: 22px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .message.error {
+      color: var(--danger);
+    }
+
+    .dashboard[hidden],
+    .auth-card[hidden] {
+      display: none;
+    }
+
+    .dashboard-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .admin-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .stat-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: var(--panel-strong);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #8eb0c7;
+    }
+
+    .stat-value {
+      margin-top: 8px;
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    .toolbar .input {
+      flex: 1 1 260px;
+    }
+
+    .table-wrap {
+      margin-top: 20px;
+      overflow: hidden;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 16px 18px;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #8eb0c7;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    tbody td {
+      padding: 16px 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      vertical-align: top;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .user-name {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .user-meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .gender-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: capitalize;
+    }
+
+    .empty {
+      padding: 28px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.8;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        position: static;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100%, calc(100% - 20px));
+        margin: 10px auto;
+        padding: 14px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="layout">
+      <aside class="panel hero">
+        <div class="eyebrow">Admin Console</div>
+        <h1><span class="gradient">Manage</span> All Users</h1>
+        <p class="hero-copy">
+          Sign in with your admin credentials to access a full view of registered users, search profiles quickly, and monitor the account base from one clean dashboard.
+        </p>
+
+        <div class="hero-stack">
+          <div class="hero-card">
+            <div class="hero-label">Access Layer</div>
+            <div class="hero-value">Admin JWT Session</div>
+          </div>
+          <div class="hero-card">
+            <div class="hero-label">Data Source</div>
+            <div class="hero-value">app_user Collection</div>
+          </div>
+          <div class="hero-card">
+            <div class="hero-label">Primary Action</div>
+            <div class="hero-value">Review and search all users</div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <section class="panel auth-card" id="loginCard">
+          <h2 class="section-title">Admin Login</h2>
+          <p class="section-text">Use the configured admin email and password to unlock the user dashboard.</p>
+
+          <form id="loginForm" class="form-grid">
+            <div class="field">
+              <label class="label" for="email">Admin Email</label>
+              <input class="input" id="email" name="email" type="email" autocomplete="username" required>
+            </div>
+            <div class="field">
+              <label class="label" for="password">Password</label>
+              <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+            </div>
+
+            <div class="actions">
+              <button type="submit" class="primary" id="loginButton">Login</button>
+            </div>
+          </form>
+
+          <div class="message" id="loginMessage"></div>
+        </section>
+
+        <section class="panel dashboard" id="dashboard" hidden>
+          <div class="dashboard-head">
+            <div>
+              <h2 class="section-title">Registered Users</h2>
+              <p class="section-text">Search, review, and track every registered user from the central admin dashboard.</p>
+            </div>
+            <div class="actions">
+              <div class="admin-pill" id="adminIdentity">Admin</div>
+              <button type="button" class="secondary" id="logoutButton">Logout</button>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total Users</div>
+              <div class="stat-value" id="totalUsers">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Male Users</div>
+              <div class="stat-value" id="maleUsers">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Female Users</div>
+              <div class="stat-value" id="femaleUsers">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Other Users</div>
+              <div class="stat-value" id="otherUsers">0</div>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <input class="input" id="searchInput" type="text" placeholder="Search by name, email, or mobile number">
+            <button type="button" class="primary" id="searchButton">Search</button>
+            <button type="button" class="secondary" id="resetButton">Reset</button>
+          </div>
+
+          <div class="message" id="dashboardMessage"></div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Contact</th>
+                  <th>Gender</th>
+                  <th>Body Data</th>
+                  <th>Joined</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody"></tbody>
+            </table>
+            <div class="empty" id="emptyState" hidden>No users matched the current search.</div>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const ADMIN_TOKEN_KEY = 'admin_console_token';
+    const loginCard = document.getElementById('loginCard');
+    const dashboard = document.getElementById('dashboard');
+    const loginForm = document.getElementById('loginForm');
+    const loginButton = document.getElementById('loginButton');
+    const loginMessage = document.getElementById('loginMessage');
+    const adminIdentity = document.getElementById('adminIdentity');
+    const logoutButton = document.getElementById('logoutButton');
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+    const resetButton = document.getElementById('resetButton');
+    const dashboardMessage = document.getElementById('dashboardMessage');
+    const usersTableBody = document.getElementById('usersTableBody');
+    const emptyState = document.getElementById('emptyState');
+    const totalUsers = document.getElementById('totalUsers');
+    const maleUsers = document.getElementById('maleUsers');
+    const femaleUsers = document.getElementById('femaleUsers');
+    const otherUsers = document.getElementById('otherUsers');
+
+    function getToken() {
+      return window.localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+    }
+
+    function setToken(token) {
+      window.localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    }
+
+    function clearToken() {
+      window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+    }
+
+    function setLoginMessage(message, isError) {
+      loginMessage.textContent = message;
+      loginMessage.className = `message${isError ? ' error' : ''}`;
+    }
+
+    function setDashboardMessage(message, isError) {
+      dashboardMessage.textContent = message;
+      dashboardMessage.className = `message${isError ? ' error' : ''}`;
+    }
+
+    function showDashboard(show) {
+      loginCard.hidden = show;
+      dashboard.hidden = !show;
+    }
+
+    function formatDate(value) {
+      if (!value) {
+        return 'Not available';
+      }
+
+      return new Date(value).toLocaleString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function renderUsers(users) {
+      if (!users.length) {
+        usersTableBody.innerHTML = '';
+        emptyState.hidden = false;
+        return;
+      }
+
+      emptyState.hidden = true;
+      usersTableBody.innerHTML = users.map((user) => `
+        <tr>
+          <td>
+            <div class="user-name">${user.fullname || 'Unnamed User'}</div>
+            <div class="user-meta">User ID: ${user.user_id || 'Not available'}</div>
+          </td>
+          <td>
+            <div>${user.email || 'Not available'}</div>
+            <div class="user-meta">${user.mobile_number || 'No mobile number'}</div>
+          </td>
+          <td><span class="gender-pill">${user.gender || 'Not set'}</span></td>
+          <td>
+            <div>Height: ${user.height_cm || 'NA'} cm</div>
+            <div class="user-meta">Weight: ${user.weight_kg || 'NA'} kg</div>
+          </td>
+          <td>${formatDate(user.created_timestamp)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function updateStats(stats) {
+      totalUsers.textContent = stats.total_users || 0;
+      maleUsers.textContent = stats.male_users || 0;
+      femaleUsers.textContent = stats.female_users || 0;
+      otherUsers.textContent = stats.other_users || 0;
+    }
+
+    async function fetchAdminProfile() {
+      const response = await fetch('/api/admin/me', {
+        headers: {
+          Authorization: `Bearer ${getToken()}`
+        }
+      });
+      const payload = await response.json();
+
+      if (!response.ok || payload.statusCode !== '200') {
+        throw new Error(payload.statusMessage || 'Unauthorized');
+      }
+
+      return payload.data[0].admin;
+    }
+
+    async function fetchUsers(query = '') {
+      const url = query ? `/api/admin/users?q=${encodeURIComponent(query)}` : '/api/admin/users';
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`
+        }
+      });
+      const payload = await response.json();
+
+      if (!response.ok || payload.statusCode !== '200') {
+        throw new Error(payload.statusMessage || 'Unable to load users');
+      }
+
+      return payload.data[0];
+    }
+
+    async function loadDashboard(query = '') {
+      try {
+        setDashboardMessage('Loading users...', false);
+        const [admin, userData] = await Promise.all([
+          fetchAdminProfile(),
+          fetchUsers(query)
+        ]);
+
+        adminIdentity.textContent = `${admin.name} • ${admin.email}`;
+        updateStats(userData.stats || {});
+        renderUsers(userData.users || []);
+        setDashboardMessage(`${(userData.users || []).length} user records loaded.`, false);
+        showDashboard(true);
+      } catch (error) {
+        clearToken();
+        showDashboard(false);
+        setLoginMessage(error.message, true);
+      }
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      setLoginMessage('', false);
+      loginButton.disabled = true;
+
+      const formData = new FormData(loginForm);
+      const payload = {
+        email: String(formData.get('email') || '').trim(),
+        password: String(formData.get('password') || '')
+      };
+
+      try {
+        const response = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || data.statusCode !== '200') {
+          throw new Error(data.statusMessage || 'Login failed');
+        }
+
+        setToken(data.data[0].token);
+        loginForm.reset();
+        await loadDashboard();
+      } catch (error) {
+        setLoginMessage(error.message, true);
+      } finally {
+        loginButton.disabled = false;
+      }
+    }
+
+    loginForm.addEventListener('submit', handleLogin);
+    searchButton.addEventListener('click', () => {
+      void loadDashboard(searchInput.value.trim());
+    });
+    resetButton.addEventListener('click', () => {
+      searchInput.value = '';
+      void loadDashboard();
+    });
+    logoutButton.addEventListener('click', () => {
+      clearToken();
+      showDashboard(false);
+      setDashboardMessage('', false);
+      setLoginMessage('You have been logged out.', false);
+    });
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void loadDashboard(searchInput.value.trim());
+      }
+    });
+
+    if (getToken()) {
+      void loadDashboard();
+    } else {
+      showDashboard(false);
+    }
+  </script>
+</body>
+</html>

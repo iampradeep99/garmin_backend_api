@@ -145,6 +145,7 @@ const morgan = require('morgan');
 require('dotenv').config();
 
 const logger = require('./logger');
+const swaggerDocument = require('./docs/swagger');
 
 const { startHealthCron } = require('./crons/healthAlertCron');
 const { startSeederCron } = require('./crons/seederCron');
@@ -156,6 +157,7 @@ const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const garminRouter = require('./routes/garmin');
 const garminPushRouter = require('./routes/garminPush');
+const garminPingRouter = require('./routes/garminPing');
 const thresholdRouter = require('./routes/threshold');
 
 startSeederCron();
@@ -185,6 +187,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 
+app.get('/api-docs.json', (req, res) => {
+  res.json(swaggerDocument);
+});
+
+app.use('/api-docs', express.static(path.join(publicPath, 'swagger')));
+
 // Logging
 app.use((req, res, next) => {
   logger.info(`Incoming Request: ${req.method} ${req.url} | IP: ${req.ip}`);
@@ -196,6 +204,7 @@ app.use('/api/auth', authRouter);
 app.use('/users', usersRouter);
 app.use('/api/garmin', garminRouter);
 app.use('/api/garmin/push', garminPushRouter);
+app.use('/api/garmin/ping', garminPingRouter);
 app.use('/api/threshold', thresholdRouter);
 
 // 404

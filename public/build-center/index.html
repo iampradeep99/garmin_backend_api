@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build Center</title>
+  <style>
+    :root {
+      --bg-1: #071422;
+      --bg-2: #10283c;
+      --bg-3: #183d59;
+      --accent: #5eead4;
+      --accent-strong: #22d3ee;
+      --accent-soft: rgba(94, 234, 212, 0.18);
+      --danger: #ff8b8b;
+      --warning: #ffd67a;
+      --text: #ecf8ff;
+      --muted: #9db8cb;
+      --line: rgba(255, 255, 255, 0.1);
+      --panel: rgba(10, 23, 35, 0.78);
+      --panel-strong: rgba(14, 30, 46, 0.95);
+      --shadow: 0 30px 90px rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(94, 234, 212, 0.16), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(34, 211, 238, 0.14), transparent 30%),
+        linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
+    }
+
+    .shell {
+      width: min(1160px, calc(100% - 32px));
+      margin: 34px auto;
+      padding: 28px;
+      border-radius: 34px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(9, 23, 36, 0.92), rgba(10, 20, 32, 0.82));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(24px);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .hero-copy,
+    .hero-panel,
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: var(--panel);
+    }
+
+    .hero-copy {
+      padding: 34px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-copy::before {
+      content: "";
+      position: absolute;
+      inset: auto -10% -30% auto;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.22), rgba(94, 234, 212, 0));
+      filter: blur(16px);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 20px 0 16px;
+      font-size: clamp(38px, 5vw, 64px);
+      line-height: 0.95;
+      letter-spacing: -0.06em;
+    }
+
+    .gradient {
+      background: linear-gradient(90deg, #ffffff 0%, #d4fff5 45%, #7ee7ff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 640px;
+      font-size: 18px;
+      line-height: 1.8;
+      color: var(--muted);
+    }
+
+    .hero-panel {
+      padding: 28px;
+      display: grid;
+      gap: 16px;
+      align-content: center;
+    }
+
+    .metric {
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: #87a9bf;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .metric-value {
+      margin-top: 8px;
+      font-size: 22px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .sections {
+      display: grid;
+      gap: 22px;
+      margin-top: 22px;
+    }
+
+    .section {
+      padding: 28px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .platform-option input {
+      display: none;
+    }
+
+    .platform-card {
+      display: grid;
+      gap: 10px;
+      padding: 20px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .platform-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(94, 234, 212, 0.35);
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.18);
+    }
+
+    .platform-option input:checked + .platform-card {
+      border-color: rgba(94, 234, 212, 0.75);
+      background: linear-gradient(180deg, rgba(94, 234, 212, 0.18), rgba(255, 255, 255, 0.04));
+      box-shadow: 0 18px 40px rgba(94, 234, 212, 0.16);
+    }
+
+    .platform-name {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .platform-target {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 22px;
+      align-items: center;
+    }
+
+    button,
+    .download-link,
+    .link-button {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 20px;
+      font: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 180ms ease, opacity 180ms ease, background 180ms ease;
+    }
+
+    button:hover,
+    .download-link:hover,
+    .link-button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary-action {
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-strong) 100%);
+      color: #031521;
+      font-weight: 800;
+      min-width: 190px;
+    }
+
+    .secondary-action {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+
+    .primary-action:disabled {
+      opacity: 0.55;
+      cursor: wait;
+      transform: none;
+    }
+
+    .status-panel {
+      margin-top: 18px;
+      padding: 18px 20px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      display: grid;
+      gap: 8px;
+    }
+
+    .status-label {
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #88abc0;
+    }
+
+    .status-message {
+      font-size: 18px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .status-meta {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      word-break: break-word;
+    }
+
+    .progress-shell {
+      margin-top: 6px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .progress-shell.is-hidden {
+      display: none;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-strong) 100%);
+      box-shadow: 0 0 22px rgba(34, 211, 238, 0.28);
+      transition: width 420ms ease;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .files-grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .latest-showcase {
+      padding: 22px;
+      border-radius: 24px;
+      border: 1px solid rgba(94, 234, 212, 0.22);
+      background:
+        radial-gradient(circle at top right, rgba(94, 234, 212, 0.16), transparent 28%),
+        linear-gradient(180deg, rgba(14, 30, 46, 0.96), rgba(10, 23, 35, 0.94));
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
+    }
+
+    .latest-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .latest-caption {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(94, 234, 212, 0.14);
+      border: 1px solid rgba(94, 234, 212, 0.22);
+      color: var(--accent);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .latest-title {
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.04em;
+      word-break: break-word;
+    }
+
+    .latest-subtitle {
+      margin-top: 10px;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 15px;
+    }
+
+    .latest-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .latest-stat {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .latest-stat-label {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #8eb0c7;
+    }
+
+    .latest-stat-value {
+      margin-top: 6px;
+      font-size: 17px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .download-columns {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .download-column {
+      padding: 18px;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: linear-gradient(180deg, rgba(14, 29, 44, 0.92), rgba(10, 22, 34, 0.86));
+      min-height: 100%;
+    }
+
+    .download-column-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .download-column-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .download-count {
+      min-width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .download-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .file-card {
+      display: grid;
+      gap: 16px;
+      padding: 18px;
+      border-radius: 20px;
+      background: var(--panel-strong);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .file-name {
+      font-size: 18px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .file-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .latest-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(94, 234, 212, 0.16);
+      border: 1px solid rgba(94, 234, 212, 0.28);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .file-meta {
+      margin-top: 6px;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .download-link {
+      background: rgba(94, 234, 212, 0.14);
+      color: var(--text);
+      border: 1px solid rgba(94, 234, 212, 0.24);
+      white-space: nowrap;
+    }
+
+    .delete-button {
+      background: rgba(255, 139, 139, 0.12);
+      color: #ffd1d1;
+      border: 1px solid rgba(255, 139, 139, 0.22);
+      white-space: nowrap;
+    }
+
+    .deploy-button {
+      background: rgba(34, 211, 238, 0.12);
+      color: #d7f8ff;
+      border: 1px solid rgba(34, 211, 238, 0.22);
+      white-space: nowrap;
+    }
+
+    .file-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-start;
+    }
+
+    .empty-state {
+      padding: 22px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 10, 18, 0.72);
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 180ms ease, visibility 180ms ease;
+      z-index: 50;
+    }
+
+    .modal-overlay.is-open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-card {
+      width: min(100%, 560px);
+      padding: 28px;
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background:
+        radial-gradient(circle at top right, rgba(94, 234, 212, 0.12), transparent 28%),
+        linear-gradient(180deg, rgba(14, 29, 44, 0.98), rgba(8, 20, 31, 0.96));
+      box-shadow: 0 32px 90px rgba(0, 0, 0, 0.34);
+      transform: translateY(18px) scale(0.98);
+      transition: transform 180ms ease;
+    }
+
+    .modal-overlay.is-open .modal-card {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-kicker {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .modal-title {
+      margin: 18px 0 10px;
+      font-size: 30px;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+
+    .modal-text {
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 15px;
+    }
+
+    .modal-target {
+      margin-top: 16px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      word-break: break-word;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .modal-field {
+      margin-top: 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .modal-label {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #8eb0c7;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 15px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      outline: none;
+      font: inherit;
+      transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .modal-input:focus {
+      border-color: rgba(94, 234, 212, 0.55);
+      box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.12);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .modal-error {
+      min-height: 20px;
+      margin-top: 10px;
+      color: #ffb4b4;
+      font-size: 14px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .ghost-button {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .danger-button {
+      background: linear-gradient(90deg, rgba(255, 139, 139, 0.88), rgba(255, 110, 110, 0.92));
+      color: #210909;
+      font-weight: 800;
+    }
+
+    .status-good {
+      color: var(--accent);
+    }
+
+    .status-warn {
+      color: var(--warning);
+    }
+
+    .status-bad {
+      color: var(--danger);
+    }
+
+    @media (max-width: 960px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .platform-grid,
+      .download-columns,
+      .latest-stats {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">Build Center</div>
+        <h1><span class="gradient">Make Kit</span> Garmin Production Build</h1>
+        <p class="lead">
+          Choose the target platform, generate the build, and manage the latest downloadable artifacts from one place.
+        </p>
+      </div>
+      <div class="hero-panel">
+        <div class="metric">
+          <div class="metric-label">Application Entry</div>
+          <div class="metric-value">server.js</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Packaging Tool</div>
+          <div class="metric-value">pkg</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Artifacts Folder</div>
+          <div class="metric-value">/builds</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sections">
+      <section class="section">
+        <div class="section-head">
+          <h2 class="section-title">Generate Build</h2>
+          <div class="section-note">Create a target-specific build and keep the artifact available for manual download.</div>
+        </div>
+
+        <form id="buildForm">
+          <div class="platform-grid" id="platformGrid"></div>
+
+          <div class="actions">
+            <button type="submit" class="primary-action" id="submitButton">Create Build</button>
+            <button type="button" class="secondary-action" id="refreshButton">Refresh Downloads</button>
+          </div>
+        </form>
+
+        <div class="status-panel">
+          <div class="status-label">Build Status</div>
+          <div class="status-message" id="statusMessage">Ready to package the backend for your selected target.</div>
+          <div class="status-meta" id="statusMeta">No build is running right now.</div>
+          <div class="progress-shell">
+            <div class="progress-track">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-meta">
+              <span id="progressPhase">Waiting to start</span>
+              <span id="progressValue">0%</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2 class="section-title">Available Downloads</h2>
+          <div class="section-note">The newest artifact stays highlighted separately, while every build remains grouped by its platform.</div>
+        </div>
+        <div class="files-grid" id="filesGrid"></div>
+      </section>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="actionModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-kicker" id="modalKicker">Build Action</div>
+      <div class="modal-title" id="modalTitle">Action</div>
+      <div class="modal-text" id="modalText"></div>
+      <div class="modal-target" id="modalTarget"></div>
+      <div class="modal-field" id="modalField">
+        <label class="modal-label" for="modalInput" id="modalLabel">Destination Path</label>
+        <input class="modal-input" id="modalInput" type="text" autocomplete="off">
+      </div>
+      <div class="modal-error" id="modalError"></div>
+      <div class="modal-actions">
+        <button type="button" class="ghost-button" id="modalCancelButton">Cancel</button>
+        <button type="button" class="primary-action" id="modalConfirmButton">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const buildForm = document.getElementById('buildForm');
+    const platformGrid = document.getElementById('platformGrid');
+    const statusMessage = document.getElementById('statusMessage');
+    const statusMeta = document.getElementById('statusMeta');
+    const filesGrid = document.getElementById('filesGrid');
+    const submitButton = document.getElementById('submitButton');
+    const refreshButton = document.getElementById('refreshButton');
+    const progressFill = document.getElementById('progressFill');
+    const progressPhase = document.getElementById('progressPhase');
+    const progressValue = document.getElementById('progressValue');
+    const progressShell = document.querySelector('.progress-shell');
+    const actionModal = document.getElementById('actionModal');
+    const modalKicker = document.getElementById('modalKicker');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalText = document.getElementById('modalText');
+    const modalTarget = document.getElementById('modalTarget');
+    const modalField = document.getElementById('modalField');
+    const modalLabel = document.getElementById('modalLabel');
+    const modalInput = document.getElementById('modalInput');
+    const modalError = document.getElementById('modalError');
+    const modalCancelButton = document.getElementById('modalCancelButton');
+    const modalConfirmButton = document.getElementById('modalConfirmButton');
+    const DEPLOY_PATH_KEY = 'build_center_deploy_path';
+
+    let selectedPlatform = 'windows';
+    let activeJobId = null;
+    let buildStatusTimer = null;
+    let modalState = null;
+
+    function formatBytes(value) {
+      if (!value) {
+        return '0 B';
+      }
+
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let size = value;
+      let unitIndex = 0;
+
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+      }
+
+      return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+    }
+
+    function formatDate(value) {
+      if (!value) {
+        return 'Not available';
+      }
+
+      return new Date(value).toLocaleString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function setStatus(kind, message, meta) {
+      statusMessage.textContent = message;
+      statusMeta.textContent = meta;
+      statusMessage.className = `status-message ${kind}`;
+    }
+
+    function setProgress(progress, phase) {
+      const safeProgress = Math.max(0, Math.min(100, Number(progress) || 0));
+      progressFill.style.width = `${safeProgress}%`;
+      progressValue.textContent = `${Math.round(safeProgress)}%`;
+      progressPhase.textContent = phase || 'Waiting to start';
+    }
+
+    function setProgressVisible(isVisible) {
+      progressShell.classList.toggle('is-hidden', !isVisible);
+    }
+
+    function closeModal() {
+      actionModal.classList.remove('is-open');
+      actionModal.setAttribute('aria-hidden', 'true');
+      modalInput.value = '';
+      modalError.textContent = '';
+      modalState = null;
+      modalConfirmButton.disabled = false;
+      modalConfirmButton.textContent = 'Continue';
+    }
+
+    function openModal(config) {
+      modalState = config;
+      modalKicker.textContent = config.kicker;
+      modalTitle.textContent = config.title;
+      modalText.textContent = config.text;
+      modalTarget.textContent = config.fileName;
+      modalField.style.display = config.mode === 'deploy' ? 'grid' : 'none';
+      modalLabel.textContent = config.inputLabel || 'Destination Path';
+      modalInput.value = config.inputValue || '';
+      modalError.textContent = '';
+      modalConfirmButton.textContent = config.confirmLabel;
+      modalConfirmButton.className = config.mode === 'delete' ? 'danger-button' : 'primary-action';
+      actionModal.classList.add('is-open');
+      actionModal.setAttribute('aria-hidden', 'false');
+
+      if (config.mode === 'deploy') {
+        requestAnimationFrame(() => modalInput.focus());
+      } else {
+        requestAnimationFrame(() => modalConfirmButton.focus());
+      }
+    }
+
+    async function confirmModalAction() {
+      if (!modalState) {
+        return;
+      }
+
+      modalError.textContent = '';
+      modalConfirmButton.disabled = true;
+
+      try {
+        if (modalState.mode === 'deploy') {
+          const trimmedPath = modalInput.value.trim();
+
+          if (!trimmedPath) {
+            modalError.textContent = 'Please enter a destination folder path.';
+            modalConfirmButton.disabled = false;
+            modalInput.focus();
+            return;
+          }
+
+          const response = await fetch(`/api/builds/deploy/${encodeURIComponent(modalState.fileName)}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              destination_path: trimmedPath
+            })
+          });
+
+          const payload = await response.json();
+
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload.message || 'Unable to deploy build');
+          }
+
+          window.localStorage.setItem(DEPLOY_PATH_KEY, trimmedPath);
+          closeModal();
+          setStatus('status-good', 'Build deployed successfully.', `${modalState.fileName} was copied to ${payload.deployed.deployed_path}`);
+          return;
+        }
+
+        const response = await fetch(`/api/builds/file/${encodeURIComponent(modalState.fileName)}`, {
+          method: 'DELETE'
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.message || 'Unable to delete build');
+        }
+
+        closeModal();
+        await loadBuildResources();
+        setStatus('status-good', 'Build deleted successfully.', `${modalState.fileName} has been removed from the available downloads list.`);
+      } catch (error) {
+        modalError.textContent = error.message;
+        modalConfirmButton.disabled = false;
+      }
+    }
+
+    function renderPlatforms(platforms) {
+      platformGrid.innerHTML = platforms.map((platform, index) => `
+        <label class="platform-option">
+          <input type="radio" name="platform" value="${platform.id}" ${index === 0 ? 'checked' : ''}>
+          <span class="platform-card">
+            <span class="platform-name">${platform.label}</span>
+            <span class="platform-target">${platform.target}</span>
+          </span>
+        </label>
+      `).join('');
+
+      platformGrid.querySelectorAll('input[name="platform"]').forEach((input) => {
+        input.addEventListener('change', () => {
+          selectedPlatform = input.value;
+        });
+      });
+    }
+
+    function renderFiles(files) {
+      if (!files.length) {
+        filesGrid.innerHTML = `
+          <div class="empty-state">
+            No build artifacts are available yet. Create the first build and the download card will appear here.
+          </div>
+        `;
+        return;
+      }
+
+      const latestFile = files[0];
+      const groupedFiles = {
+        windows: files.filter((file) => file.platform === 'windows'),
+        linux: files.filter((file) => file.platform === 'linux'),
+        mac: files.filter((file) => file.platform === 'mac')
+      };
+
+      const renderFileCard = (file, showLatestBadge) => `
+        <article class="file-card">
+          <div>
+            <div class="file-head">
+              <div class="file-name">${file.file_name}</div>
+              ${showLatestBadge ? '<span class="latest-badge">Latest</span>' : ''}
+            </div>
+            <div class="file-meta">
+              Size: ${formatBytes(file.size_bytes)}<br>
+              Updated: ${formatDate(file.updated_at)}
+            </div>
+          </div>
+          <div class="file-actions">
+            <a class="download-link" href="${file.download_url}">Download Build</a>
+            <button type="button" class="deploy-button" data-file-name="${file.file_name}">Deploy</button>
+            <button type="button" class="delete-button" data-file-name="${file.file_name}">Delete</button>
+          </div>
+        </article>
+      `;
+
+      const renderColumn = (title, key) => {
+        const items = groupedFiles[key];
+
+        return `
+          <section class="download-column">
+            <div class="download-column-head">
+              <div class="download-column-title">${title}</div>
+              <div class="download-count">${items.length}</div>
+            </div>
+            <div class="download-stack">
+              ${items.length
+                ? items.map((file) => renderFileCard(file, file.file_name === latestFile.file_name)).join('')
+                : '<div class="empty-state">No builds available for this platform yet.</div>'}
+            </div>
+          </section>
+        `;
+      };
+
+      filesGrid.innerHTML = `
+        <section class="latest-showcase">
+          <div class="latest-head">
+            <div>
+              <div class="latest-caption">Latest Build</div>
+              <div class="latest-title">${latestFile.file_name}</div>
+              <div class="latest-subtitle">The newest generated artifact is ready for download and highlighted here for quick access.</div>
+            </div>
+            <span class="latest-badge">Latest</span>
+          </div>
+          <div class="latest-stats">
+            <div class="latest-stat">
+              <div class="latest-stat-label">Platform</div>
+              <div class="latest-stat-value">${latestFile.platform_label || 'Unknown'}</div>
+            </div>
+            <div class="latest-stat">
+              <div class="latest-stat-label">Size</div>
+              <div class="latest-stat-value">${formatBytes(latestFile.size_bytes)}</div>
+            </div>
+            <div class="latest-stat">
+              <div class="latest-stat-label">Updated</div>
+              <div class="latest-stat-value">${formatDate(latestFile.updated_at)}</div>
+            </div>
+          </div>
+          <div class="file-actions" style="margin-top: 18px;">
+            <a class="download-link" href="${latestFile.download_url}">Download Latest Build</a>
+            <button type="button" class="deploy-button" data-file-name="${latestFile.file_name}">Deploy Latest Build</button>
+            <button type="button" class="delete-button" data-file-name="${latestFile.file_name}">Delete Latest Build</button>
+          </div>
+        </section>
+        <div class="download-columns">
+          ${renderColumn('Windows', 'windows')}
+          ${renderColumn('Linux', 'linux')}
+          ${renderColumn('macOS', 'mac')}
+        </div>
+      `;
+
+      filesGrid.querySelectorAll('.delete-button').forEach((button) => {
+        button.addEventListener('click', () => {
+          void deleteBuild(button.dataset.fileName);
+        });
+      });
+
+      filesGrid.querySelectorAll('.deploy-button').forEach((button) => {
+        button.addEventListener('click', () => {
+          void deployBuild(button.dataset.fileName);
+        });
+      });
+    }
+
+    async function loadBuildResources() {
+      const response = await fetch('/api/builds');
+      const payload = await response.json();
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message || 'Unable to load build resources');
+      }
+
+      renderPlatforms(payload.platforms || []);
+      renderFiles(payload.files || []);
+      return payload;
+    }
+
+    async function fetchJob(jobId) {
+      const response = await fetch(`/api/builds/${jobId}`);
+      const payload = await response.json();
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message || 'Unable to fetch build status');
+      }
+
+      return payload.job;
+    }
+
+    function stopBuildWatcher() {
+      if (buildStatusTimer) {
+        clearInterval(buildStatusTimer);
+        buildStatusTimer = null;
+      }
+    }
+
+    async function syncBuildJob(jobId) {
+      const job = await fetchJob(jobId);
+      setProgress(job.progress, job.phase);
+
+      if (job.status === 'queued' || job.status === 'building') {
+        setProgressVisible(true);
+        submitButton.disabled = true;
+        setStatus(
+          'status-warn',
+          `${job.label} build is in progress.`,
+          `${job.phase || 'Packaging application files'} Current artifact: ${job.file_name}`
+        );
+        return job;
+      }
+
+      stopBuildWatcher();
+      submitButton.disabled = false;
+
+      if (job.status === 'completed') {
+        setProgressVisible(false);
+        setStatus(
+          'status-good',
+          `${job.label} build is ready.`,
+          `Generated ${job.file_name} on ${formatDate(job.finished_at)} with a final size of ${formatBytes(job.size_bytes)}. You can download it from the list below.`
+        );
+        await loadBuildResources();
+        activeJobId = null;
+        return job;
+      }
+
+      setProgressVisible(false);
+      setStatus('status-bad', `${job.label} build failed.`, job.error || 'The packaging process could not complete.');
+      activeJobId = null;
+      return job;
+    }
+
+    function watchBuildJob(jobId) {
+      activeJobId = jobId;
+      stopBuildWatcher();
+
+      buildStatusTimer = setInterval(async () => {
+        try {
+          await syncBuildJob(jobId);
+        } catch (error) {
+          stopBuildWatcher();
+          submitButton.disabled = false;
+          setStatus('status-bad', 'Unable to track build progress.', error.message);
+        }
+      }, 1000);
+    }
+
+    async function createBuild(event) {
+      event.preventDefault();
+
+      submitButton.disabled = true;
+      setProgressVisible(true);
+      setProgress(6, 'Submitting build request');
+      setStatus('status-warn', 'Packaging is in progress.', `Creating a ${selectedPlatform} build. Progress will update here while the artifact is being generated.`);
+
+      try {
+        const response = await fetch('/api/builds', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            platform: selectedPlatform
+          })
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok || !payload.ok) {
+          if (response.status === 409 && payload.job) {
+            setProgress(payload.job.progress, payload.job.phase);
+            const latestJob = await syncBuildJob(payload.job.id);
+
+            if (latestJob.status === 'queued' || latestJob.status === 'building') {
+              watchBuildJob(payload.job.id);
+            }
+
+            return;
+          }
+
+          throw new Error(payload.message || 'Build request failed');
+        }
+
+        const job = payload.job;
+        setProgress(job.progress, job.phase);
+        const latestJob = await syncBuildJob(job.id);
+
+        if (latestJob.status === 'queued' || latestJob.status === 'building') {
+          watchBuildJob(job.id);
+        }
+      } catch (error) {
+        stopBuildWatcher();
+        submitButton.disabled = false;
+        setProgressVisible(false);
+        setProgress(0, 'Waiting to start');
+        setStatus('status-bad', 'Build request failed.', error.message);
+      }
+    }
+
+    async function deleteBuild(fileName) {
+      openModal({
+        mode: 'delete',
+        kicker: 'Delete Build',
+        title: 'Remove this build artifact?',
+        text: 'This action will remove the selected build from your downloads list. Make sure you no longer need this artifact before continuing.',
+        fileName,
+        confirmLabel: 'Delete Build'
+      });
+    }
+
+    async function deployBuild(fileName) {
+      const lastPath = window.localStorage.getItem(DEPLOY_PATH_KEY) || '';
+      openModal({
+        mode: 'deploy',
+        kicker: 'Deploy Build',
+        title: 'Choose the deployment folder',
+        text: 'Enter the destination folder where this build should be copied. The folder will be created automatically if it does not already exist.',
+        fileName,
+        inputLabel: 'Destination Folder Path',
+        inputValue: lastPath,
+        confirmLabel: 'Deploy Build'
+      });
+    }
+
+    async function initialize() {
+      try {
+        const payload = await loadBuildResources();
+        const activeJob = (payload.jobs || []).find((job) => job.status === 'queued' || job.status === 'building');
+
+        if (activeJob) {
+          setProgress(activeJob.progress, activeJob.phase);
+          const latestJob = await syncBuildJob(activeJob.id);
+
+          if (latestJob.status === 'queued' || latestJob.status === 'building') {
+            watchBuildJob(activeJob.id);
+          }
+          return;
+        }
+
+        setProgressVisible(false);
+        setProgress(0, 'Waiting to start');
+      } catch (error) {
+        setStatus('status-bad', 'Unable to load build center.', error.message);
+        renderFiles([]);
+        setProgressVisible(false);
+        setProgress(0, 'Unavailable');
+      }
+    }
+
+    buildForm.addEventListener('submit', createBuild);
+    refreshButton.addEventListener('click', initialize);
+    modalCancelButton.addEventListener('click', closeModal);
+    modalConfirmButton.addEventListener('click', () => {
+      void confirmModalAction();
+    });
+    actionModal.addEventListener('click', (event) => {
+      if (event.target === actionModal) {
+        closeModal();
+      }
+    });
+    modalInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && modalState && modalState.mode === 'deploy') {
+        event.preventDefault();
+        void confirmModalAction();
+      }
+    });
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && actionModal.classList.contains('is-open')) {
+        closeModal();
+      }
+    });
+    initialize();
+  </script>
+</body>
+</html>

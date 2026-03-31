@@ -50,8 +50,8 @@ app.use(express.static(publicPath));
 app.use('/build-center', express.static(path.join(publicPath, 'build-center')));
 
 app.get('/', (req, res) => {
-  // res.redirect(statusPublicUrl);
-    res.send("Main API running on 3002");
+  res.redirect(statusPublicUrl);
+    // res.send("Main API running on 3002");
 });
 
 app.get('/health', (req, res) => {

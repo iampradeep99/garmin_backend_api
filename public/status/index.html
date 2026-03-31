@@ -619,8 +619,8 @@
               <div class="stat-value" id="serverUrl">Connecting</div>
             </div>
             <div class="stat">
-              <div class="stat-label">Last Check</div>
-              <div class="stat-value" id="lastCheck">Pending</div>
+              <div class="stat-label">Last Change</div>
+              <div class="stat-value" id="lastCheck">Waiting</div>
             </div>
           </div>
         </div>
@@ -628,6 +628,7 @@
     </div>
   </div>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script>
     const body = document.body;
     const serverUrlEl = document.getElementById("serverUrl");
@@ -636,7 +637,6 @@
     const statusChipEl = document.querySelector(".status-chip");
     const titleGradientEl = document.querySelector(".gradient");
     const descriptionEl = document.getElementById("description");
-    const healthUrl = `${window.location.origin}/status/health`;
 
     function formatTime(value) {
       return new Date(value).toLocaleTimeString('en-IN', {
@@ -682,24 +682,25 @@
       }
     }
 
-    async function runHealthCheck() {
-      applyStatus('checking');
+    function connectSocket() {
+      const socket = io({
+        transports: ['websocket']
+      });
 
-      try {
-        const response = await fetch(healthUrl, {
-          method: 'GET',
-          cache: 'no-store'
-        });
+      socket.on('status_update', (payload) => {
+        try {
+          applyStatus(payload.status || (payload.ok ? 'online' : 'offline'), payload);
+        } catch (error) {
+          applyStatus('offline');
+        }
+      });
 
-        const payload = await response.json();
-        applyStatus(payload.status || (response.ok ? 'online' : 'offline'), payload);
-      } catch (error) {
-        applyStatus('offline');
-      }
+      socket.on('disconnect', () => {
+        body.dataset.status = 'checking';
+      });
     }
 
-    runHealthCheck();
-    setInterval(runHealthCheck, 5000);
+    connectSocket();
   </script>
 </body>
 </html>

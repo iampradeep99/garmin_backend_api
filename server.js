@@ -1,4 +1,5 @@
 const http = require('http');
+const axios = require('axios');
 const debug = require('debug')('garminproject:server');
 const createError = require('http-errors');
 const express = require('express');
@@ -21,6 +22,9 @@ const garminRouter = require('./routes/garmin');
 const garminPushRouter = require('./routes/garminPush');
 const garminPingRouter = require('./routes/garminPing');
 const thresholdRouter = require('./routes/threshold');
+const statusReportUrl = process.env.STATUS_REPORT_URL || 'http://localhost:3005/status/report';
+const statusSharedSecret = process.env.STATUS_SHARED_SECRET || '';
+const statusPublicUrl = process.env.STATUS_PUBLIC_URL || 'http://localhost:3005/';
 
 startSeederCron();
 startAlertJobWorker();
@@ -43,7 +47,7 @@ const publicPath = path.join(process.cwd(), 'public');
 app.use(express.static(publicPath));
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
+  res.redirect(statusPublicUrl);
 });
 
 app.get('/health', (req, res) => {
@@ -136,10 +140,16 @@ function onError(error) {
 function onListening() {
   const addr = server.address();
   const bind = typeof addr === 'string' ? `pipe ${addr}` : `port ${addr.port}`;
+  const backendOrigin = typeof addr === 'string' ? process.env.STATUS_BACKEND_ORIGIN || '' : `http://localhost:${addr.port}`;
 
   logger.info(`Server started on ${bind}`);
   debug(`Listening on ${bind}`);
   console.log(`Server running on http://localhost:${addr.port}`);
+  void reportStatus('online', {
+    ok: true,
+    backend_origin: backendOrigin,
+    source: 'backend_start'
+  });
 }
 
 function shutdown(signal) {
@@ -149,6 +159,11 @@ function shutdown(signal) {
 
   isShuttingDown = true;
   logger.info(`Graceful shutdown started on ${signal}`);
+  void reportStatus('shutting_down', {
+    ok: false,
+    backend_origin: `http://localhost:${port}`,
+    source: signal
+  });
 
   server.close((error) => {
     if (error) {
@@ -158,11 +173,36 @@ function shutdown(signal) {
     }
 
     logger.info('HTTP server closed successfully');
-    process.exit(0);
+    reportStatus('offline', {
+      ok: false,
+      backend_origin: `http://localhost:${port}`,
+      source: 'server_closed'
+    }).finally(() => {
+      process.exit(0);
+    });
   });
 
   setTimeout(() => {
     logger.error('Forced shutdown after timeout');
     process.exit(1);
   }, 10000).unref();
+}
+
+async function reportStatus(status, payload = {}) {
+  try {
+    await axios.post(
+      statusReportUrl,
+      {
+        status,
+        checked_at: new Date().toISOString(),
+        ...payload
+      },
+      {
+        timeout: 2000,
+        headers: statusSharedSecret ? { 'x-status-secret': statusSharedSecret } : {}
+      }
+    );
+  } catch (error) {
+    logger.warn(`Status report failed: ${error.message}`);
+  }
 }

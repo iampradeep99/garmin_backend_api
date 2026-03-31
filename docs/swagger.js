@@ -3,10 +3,17 @@ const spec = {
   info: {
     title: 'Garmin Backend API',
     version: '1.0.0',
-    description: 'API documentation for authentication, Garmin OAuth/data APIs, thresholds, and Garmin push/ping webhooks.'
+    description: [
+      'API documentation for authentication, Garmin OAuth/data APIs, thresholds, and Garmin push/ping webhooks.',
+      '',
+      'Alerting architecture:',
+      '- Garmin push/ping ingestion saves incoming data first.',
+      '- Heart rate and blood pressure alerts are evaluated asynchronously through a Mongo-backed alert job worker.',
+      '- Threshold read APIs are now read-only and do not trigger email/SMS side effects.'
+    ].join('\n')
   },
   servers: [
-    { url: 'http://localhost:3001', description: 'Local development' },
+    { url: 'http://localhost:3002', description: 'Local development' },
     { url: 'https://salestracking.in', description: 'Production' }
   ],
   tags: [
@@ -464,6 +471,7 @@ spec.paths['/api/garmin/summary'] = {
   get: {
     tags: ['Garmin Data'],
     summary: 'Get today daily summary records for the authenticated user',
+    description: 'Read-only endpoint. This endpoint returns stored Garmin daily summaries for today and does not trigger alert delivery.',
     security: [{ bearerAuth: [] }],
     responses: {
       200: { description: 'Daily summaries retrieved', content: { 'application/json': { schema: { $ref: '#/components/schemas/GarminDailySummaryResponse' } } } },
@@ -476,6 +484,7 @@ spec.paths['/api/garmin/heart-rate'] = {
   get: {
     tags: ['Garmin Data'],
     summary: 'Get heart rate records for the authenticated user',
+    description: 'Read-only endpoint for stored Garmin heart-rate records. Alerts are handled asynchronously when new data is ingested.',
     security: [{ bearerAuth: [] }],
     parameters: [
       { name: 'startTime', in: 'query', schema: { type: 'integer' }, description: 'Unix timestamp in seconds' },
@@ -493,6 +502,7 @@ spec.paths['/api/garmin/bp'] = {
   get: {
     tags: ['Garmin Data'],
     summary: 'Get blood pressure records for the authenticated user',
+    description: 'Read-only endpoint for stored Garmin blood-pressure readings. Alerts are handled asynchronously when new data is ingested.',
     security: [{ bearerAuth: [] }],
     parameters: [
       { name: 'startTime', in: 'query', schema: { type: 'integer' }, description: 'Unix timestamp in seconds' },
@@ -555,6 +565,7 @@ spec.paths['/api/threshold'] = {
   get: {
     tags: ['Threshold'],
     summary: 'Evaluate latest BP and heart rate against saved thresholds',
+    description: 'Read-only threshold evaluation endpoint. It returns the current alert state based on latest readings, but does not send SMS or email.',
     security: [{ bearerAuth: [] }],
     responses: {
       200: { description: 'Threshold fetched and latest alert status returned', content: { 'application/json': { schema: { $ref: '#/components/schemas/ThresholdStatusResponse' } } } },
@@ -567,6 +578,7 @@ spec.paths['/api/garmin/push/heart-rate'] = {
   post: {
     tags: ['Garmin Push Webhooks'],
     summary: 'Receive Garmin heart rate epoch push payload',
+    description: 'Stores heart-rate epochs, then enqueues asynchronous threshold evaluation jobs for affected users.',
     requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/GarminPushEpochPayload' } } } },
     responses: {
       200: { description: 'Webhook accepted', content: { 'text/plain': { schema: { $ref: '#/components/schemas/TextOkResponse' } } } }
@@ -578,6 +590,7 @@ spec.paths['/api/garmin/push/summary'] = {
   post: {
     tags: ['Garmin Push Webhooks'],
     summary: 'Receive Garmin daily summary push payload',
+    description: 'Stores Garmin daily summaries. Daily summaries themselves do not enqueue alert jobs in the current implementation.',
     requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/GarminPushDailyPayload' } } } },
     responses: {
       200: { description: 'Webhook accepted', content: { 'text/plain': { schema: { $ref: '#/components/schemas/TextOkResponse' } } } }
@@ -589,6 +602,7 @@ spec.paths['/api/garmin/push/bp'] = {
   post: {
     tags: ['Garmin Push Webhooks'],
     summary: 'Receive Garmin blood pressure push payload',
+    description: 'Stores blood-pressure summaries, then enqueues asynchronous threshold evaluation jobs for affected users.',
     requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/GarminPushBloodPressurePayload' } } } },
     responses: {
       200: { description: 'Webhook accepted', content: { 'text/plain': { schema: { $ref: '#/components/schemas/TextOkResponse' } } } }
@@ -600,6 +614,7 @@ spec.paths['/api/garmin/ping/heart-rate'] = {
   post: {
     tags: ['Garmin Ping Webhooks'],
     summary: 'Receive Garmin heart rate ping notification and pull callback data asynchronously',
+    description: 'Acknowledges the ping immediately, fetches callback data in the background, stores heart-rate records, and enqueues alert jobs.',
     requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/GarminPingNotificationPayload' } } } },
     responses: {
       200: { description: 'Ping accepted immediately for async processing', content: { 'text/plain': { schema: { $ref: '#/components/schemas/TextOkResponse' } } } }
@@ -611,6 +626,7 @@ spec.paths['/api/garmin/ping/summary'] = {
   post: {
     tags: ['Garmin Ping Webhooks'],
     summary: 'Receive Garmin summary ping notification and pull callback data asynchronously',
+    description: 'Acknowledges the ping immediately, fetches callback data in the background, and stores Garmin daily summaries.',
     requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/GarminPingNotificationPayload' } } } },
     responses: {
       200: { description: 'Ping accepted immediately for async processing', content: { 'text/plain': { schema: { $ref: '#/components/schemas/TextOkResponse' } } } }
@@ -622,6 +638,7 @@ spec.paths['/api/garmin/ping/bp'] = {
   post: {
     tags: ['Garmin Ping Webhooks'],
     summary: 'Receive Garmin blood pressure ping notification and pull callback data asynchronously',
+    description: 'Acknowledges the ping immediately, fetches callback data in the background, stores blood-pressure readings, and enqueues alert jobs.',
     requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/GarminPingNotificationPayload' } } } },
     responses: {
       200: { description: 'Ping accepted immediately for async processing', content: { 'text/plain': { schema: { $ref: '#/components/schemas/TextOkResponse' } } } }

@@ -26,6 +26,22 @@ const AlertLogSchema = new mongoose.Schema({
     default: null
   },
 
+  alert_key: {
+    type: String,
+    default: null,
+    index: true
+  },
+
+  source_metric: {
+    type: String,
+    default: null
+  },
+
+  job_id: {
+    type: String,
+    default: null
+  },
+
   reference_id: {
     type: String,
     default: null
@@ -76,5 +92,7 @@ const AlertLogSchema = new mongoose.Schema({
   }
 
 });
+
+AlertLogSchema.index({ user_id: 1, alert_key: 1, createdAt: -1 });
 
 module.exports = mongoose.model('AlertLog', AlertLogSchema);

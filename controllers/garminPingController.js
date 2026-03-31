@@ -7,6 +7,7 @@ const GarminHeartRate = require('../models/garminHeartRates');
 const GarminDailySummary = require('../models/garmindailySummary');
 const { refreshGarminToken } = require('../services/garminService');
 const { sendGarminAlertEmail } = require('../common/garminAlertMail');
+const { enqueueAlertJob } = require('../services/alertJobService');
 
 function formatDateTime(value = new Date()) {
   return new Date(value).toLocaleString('en-IN', {
@@ -223,20 +224,28 @@ function extractRecords(callbackData, key) {
 }
 
 async function storeHeartRateRecords(records, authRecord) {
+  const sourceIds = [];
+
   for (const record of records) {
-    await GarminHeartRate.create({
+    const created = await GarminHeartRate.create({
       user_id: authRecord.user_id,
       encoded_user_id: record.userId || authRecord.encoded_user_id || authRecord.connected_garmin_user_id,
       timestamp: record.startTimeInSeconds,
       heart_rate: record.averageHeartRateInBeatsPerMinute,
       source: 'epoch'
     });
+
+    sourceIds.push(created._id);
   }
+
+  return sourceIds;
 }
 
 async function storeSummaryRecords(records, authRecord) {
+  const sourceIds = [];
+
   for (const record of records) {
-    await GarminDailySummary.findOneAndUpdate(
+    const saved = await GarminDailySummary.findOneAndUpdate(
       {
         user_id: authRecord.user_id,
         calendar_date: new Date(record.calendarDate)
@@ -257,14 +266,20 @@ async function storeSummaryRecords(records, authRecord) {
           summary_id: record.summaryId
         }
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
+
+    sourceIds.push(saved._id);
   }
+
+  return sourceIds;
 }
 
 async function storeBloodPressureRecords(records, authRecord) {
+  const sourceIds = [];
+
   for (const record of records) {
-    await GarminBloodPressure.findOneAndUpdate(
+    const saved = await GarminBloodPressure.findOneAndUpdate(
       { summary_id: record.summaryId },
       {
         $set: {
@@ -277,9 +292,13 @@ async function storeBloodPressureRecords(records, authRecord) {
           summary_id: record.summaryId
         }
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
+
+    sourceIds.push(saved._id);
   }
+
+  return sourceIds;
 }
 
 async function processNotification(notification, pingType) {
@@ -297,7 +316,13 @@ async function processNotification(notification, pingType) {
 
   if (pingType === 'heart-rate') {
     const records = extractRecords(callbackData, 'epochs');
-    await storeHeartRateRecords(records, authRecord);
+    const sourceIds = await storeHeartRateRecords(records, authRecord);
+    await enqueueAlertJob({
+      userId: authRecord.user_id,
+      metricType: 'heart_rate',
+      source: 'garmin_ping',
+      sourceIds
+    });
     logger.info(`Garmin ping processed: heart-rate | user=${authRecord.user_id} | count=${records.length}`);
     return;
   }
@@ -311,7 +336,13 @@ async function processNotification(notification, pingType) {
 
   if (pingType === 'bp') {
     const records = extractRecords(callbackData, 'bloodPressureSummaries');
-    await storeBloodPressureRecords(records, authRecord);
+    const sourceIds = await storeBloodPressureRecords(records, authRecord);
+    await enqueueAlertJob({
+      userId: authRecord.user_id,
+      metricType: 'blood_pressure',
+      source: 'garmin_ping',
+      sourceIds
+    });
     logger.info(`Garmin ping processed: bp | user=${authRecord.user_id} | count=${records.length}`);
   }
 }

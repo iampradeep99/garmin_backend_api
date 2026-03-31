@@ -7,6 +7,7 @@ const GarminBloodPressure = require('../models/garminBloodPressure');
 const GarminHeartRate = require('../models/garminHeartRates');
 const GarminDailySummary = require('../models/garmindailySummary');
 const { sendGarminAlertEmail } = require('../common/garminAlertMail');
+const { enqueueAlertJob } = require('../services/alertJobService');
 
 function formatDateTime(value = new Date()) {
   return new Date(value).toLocaleString('en-IN', {
@@ -147,6 +148,7 @@ async function getUserIdFromEncodedId(encodedUserId) {
 async function pushHeartRateEpoch(req, res) {
   // Garmin sends encoded user id in each push. We need to map it to our internal user_id.
   const epochs = req.body.epochs || [];
+  const queuedUsers = new Map();
   console.log("INCOMING userId values:", epochs.map(x => x.userId));
   try {
     console.log("GARMIN PUSH - Heart Rate:", JSON.stringify(req.body, null, 2));
@@ -155,12 +157,26 @@ async function pushHeartRateEpoch(req, res) {
       const userId = await getUserIdFromEncodedId(e.userId);
       if (!userId) continue;
 
-      await GarminHeartRate.create({
+      const created = await GarminHeartRate.create({
         user_id: userId,
         encoded_user_id: e.userId,
         timestamp: e.startTimeInSeconds,
         heart_rate: e.averageHeartRateInBeatsPerMinute,
         source: 'epoch'
+      });
+
+      if (!queuedUsers.has(userId)) {
+        queuedUsers.set(userId, []);
+      }
+      queuedUsers.get(userId).push(created._id);
+    }
+
+    for (const [userId, sourceIds] of queuedUsers.entries()) {
+      await enqueueAlertJob({
+        userId,
+        metricType: 'heart_rate',
+        source: 'garmin_push',
+        sourceIds
       });
     }
 
@@ -210,7 +226,7 @@ async function pushDailySummary(req, res) {
             summary_id: s.summaryId
           }
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     }
 
@@ -230,6 +246,7 @@ async function pushDailySummary(req, res) {
 async function pushBloodPressure(req, res) {
   // Garmin sends encoded user id in each push. We need to map it to our internal user_id.
   const readings = req.body.bloodPressureSummaries || [];
+  const queuedUsers = new Map();
   console.log("INCOMING userId values:", readings.map(x => x.userId));
   try {
     console.log("GARMIN PUSH - Blood Pressure:", JSON.stringify(req.body, null, 2));
@@ -238,7 +255,7 @@ async function pushBloodPressure(req, res) {
       const userId = await getUserIdFromEncodedId(bp.userId);
       if (!userId) continue;
 
-      await GarminBloodPressure.findOneAndUpdate(
+      const saved = await GarminBloodPressure.findOneAndUpdate(
         { summary_id: bp.summaryId },
         {
           $set: {
@@ -251,8 +268,22 @@ async function pushBloodPressure(req, res) {
             summary_id: bp.summaryId
           }
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
+
+      if (!queuedUsers.has(userId)) {
+        queuedUsers.set(userId, []);
+      }
+      queuedUsers.get(userId).push(saved._id);
+    }
+
+    for (const [userId, sourceIds] of queuedUsers.entries()) {
+      await enqueueAlertJob({
+        userId,
+        metricType: 'blood_pressure',
+        source: 'garmin_push',
+        sourceIds
+      });
     }
 
     logger.info(`Garmin push processed: bp | count=${readings.length}`);

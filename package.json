@@ -5,6 +5,8 @@
   "scripts": {
     "start": "nodemon server.js",
     "dev": "nodemon server.js",
+    "status": "node status-server.js",
+    "status:dev": "nodemon status-server.js",
     "seed": "node bin/seedDummyData.js",
     "build:win": "pkg server.js --targets node16-win-x64 --output server-win.exe",
     "build:linux": "pkg server.js --targets node16-linux-x64 --output server-linux",

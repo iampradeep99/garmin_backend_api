@@ -46,6 +46,15 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 
+app.get('/health', (req, res) => {
+  res.status(isShuttingDown ? 503 : 200).json({
+    ok: !isShuttingDown,
+    status: isShuttingDown ? 'shutting_down' : 'online',
+    uptime_seconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get('/api-docs.json', (req, res) => {
   res.json(swaggerDocument);
 });

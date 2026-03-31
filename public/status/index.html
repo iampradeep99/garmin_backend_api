@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Server Status</title>
+  <title>Status Monitor</title>
   <style>
     :root {
       --bg-1: #04111f;
@@ -115,7 +115,6 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      perspective: 1400px;
     }
 
     .card {
@@ -576,7 +575,7 @@
     }
   </style>
 </head>
-<body>
+<body data-status="checking">
   <div class="atmosphere"></div>
   <div class="floor"></div>
   <div class="particles">
@@ -606,18 +605,18 @@
         </div>
 
         <div class="content">
-          <div class="status-chip">System Live</div>
+          <div class="status-chip">Checking</div>
           <h1><span class="gradient">Server</span> is Running</h1>
-          <p>Your backend is online, reachable, and ready to handle requests with stable performance and real-time availability.</p>
+          <p id="description">A live health check is in progress to confirm that the backend is reachable and responding correctly.</p>
 
           <div class="stats">
             <div class="stat">
               <div class="stat-label">Status</div>
-              <div class="stat-value" id="statusValue">Checking</div>
+              <div class="stat-value" id="statusValue">Verifying</div>
             </div>
             <div class="stat">
-              <div class="stat-label">Origin</div>
-              <div class="stat-value" id="serverUrl"></div>
+              <div class="stat-label">Backend Origin</div>
+              <div class="stat-value" id="serverUrl">Connecting</div>
             </div>
             <div class="stat">
               <div class="stat-label">Last Check</div>
@@ -636,10 +635,8 @@
     const lastCheckEl = document.getElementById("lastCheck");
     const statusChipEl = document.querySelector(".status-chip");
     const titleGradientEl = document.querySelector(".gradient");
-    const descriptionEl = document.querySelector(".content p");
-    const healthUrl = `${window.location.origin}/health`;
-
-    serverUrlEl.innerText = window.location.origin;
+    const descriptionEl = document.getElementById("description");
+    const healthUrl = `${window.location.origin}/status/health`;
 
     function formatTime(value) {
       return new Date(value).toLocaleTimeString('en-IN', {
@@ -651,6 +648,10 @@
 
     function applyStatus(status, payload) {
       body.dataset.status = status;
+
+      if (payload && payload.backend_origin) {
+        serverUrlEl.textContent = payload.backend_origin;
+      }
 
       if (status === 'online') {
         statusChipEl.textContent = 'System Live';
@@ -671,12 +672,12 @@
         statusChipEl.textContent = 'Connection Lost';
         statusValueEl.textContent = 'Unavailable';
         titleGradientEl.textContent = 'Server';
-        descriptionEl.textContent = 'The live health check could not confirm a running backend. Please verify the server process and try again.';
+        descriptionEl.textContent = 'The monitor is running, but the backend health endpoint could not be reached. Please verify the server process and try again.';
       }
 
-      if (payload && payload.timestamp) {
-        lastCheckEl.textContent = formatTime(payload.timestamp);
-      } else if (status === 'offline') {
+      if (payload && payload.checked_at) {
+        lastCheckEl.textContent = formatTime(payload.checked_at);
+      } else {
         lastCheckEl.textContent = 'Failed';
       }
     }
@@ -685,15 +686,10 @@
       applyStatus('checking');
 
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
         const response = await fetch(healthUrl, {
           method: 'GET',
-          cache: 'no-store',
-          signal: controller.signal
+          cache: 'no-store'
         });
-
-        clearTimeout(timeoutId);
 
         const payload = await response.json();
         applyStatus(payload.status || (response.ok ? 'online' : 'offline'), payload);

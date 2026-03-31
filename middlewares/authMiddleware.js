@@ -22,14 +22,12 @@ async function authMiddleware(req, res, next) {
       return sendResponse(res, "401", "Token missing", []);
     }
 
-    // 🔐 Verify token
     const decoded = await jwtService.verifyToken(token);
 
     if (!decoded || !decoded.user_id) {
       return sendResponse(res, "401", "Invalid or expired token", []);
     }
 
-    // Attach user to request
     req.user = {
       user_id: decoded.user_id,
       fullname: decoded.fullname,
@@ -43,4 +41,4 @@ async function authMiddleware(req, res, next) {
   }
 }
 
-module.exports = {authMiddleware};
+module.exports = { authMiddleware };

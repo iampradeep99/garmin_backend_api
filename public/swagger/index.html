@@ -90,7 +90,6 @@
     .swagger-ui .topbar {
       display: none;
     }
-    .swagger-ui .scheme-container,
     .swagger-ui .servers,
     .swagger-ui .servers-title,
     .swagger-ui .information-container .base-url,
@@ -100,6 +99,13 @@
     }
     .swagger-ui .information-container {
       padding: 0 6px 18px;
+    }
+    .swagger-ui .scheme-container {
+      margin: 0 0 18px;
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 10px 24px rgba(13, 43, 69, 0.08);
     }
     .swagger-ui .info {
       margin: 0 0 18px;
@@ -156,6 +162,11 @@
       background: #fff;
       border-radius: 999px;
       box-shadow: 0 8px 18px rgba(23, 105, 209, 0.12);
+    }
+    .swagger-ui .auth-wrapper {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
     }
     .swagger-ui .btn.execute {
       border-radius: 999px;

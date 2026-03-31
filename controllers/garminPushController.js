@@ -1,6 +1,3 @@
-// controllers/garminPushController.js
-
-const { sendResponse } = require('../middlewares/common');
 const logger = require('../utils/logger');
 const GarminAuth = require('../models/garminAuthModel');
 const GarminBloodPressure = require('../models/garminBloodPressure');
@@ -110,18 +107,9 @@ async function sendPushErrorAlert(req, pushType, records, error) {
   }
 }
 
-// ─── Helper: resolve internal user_id from Garmin's encoded user id ───────────────────────────────────────────────────────────────
 async function getUserIdFromEncodedId(encodedUserId) {
-
   if (!encodedUserId) return null;
 
-  // Try to find existing user with this encoded id
-  // const existing = await GarminAuth.findOne({
-  //   encoded_user_id: encodedUserId,
-  //   is_connected: true
-  // }).lean();
-
-  // AFTER — checks both fields
   const existing = await GarminAuth.findOne({
     $or: [
       { encoded_user_id: encodedUserId },
@@ -132,9 +120,7 @@ async function getUserIdFromEncodedId(encodedUserId) {
 
   if (existing) return existing.user_id;
 
-  // Fallback: assign encoded id to the most recently connected user
-  const auth = await GarminAuth.findOne({ is_connected: true })
-    .sort({ updated_timestamp: -1 });
+  const auth = await GarminAuth.findOne({ is_connected: true }).sort({ updated_timestamp: -1 });
 
   if (!auth) return null;
 
@@ -144,30 +130,31 @@ async function getUserIdFromEncodedId(encodedUserId) {
   return auth.user_id;
 }
 
-// ─── Push: Heart Rate Epochs ──────────────────────────────────────────────────
 async function pushHeartRateEpoch(req, res) {
-  // Garmin sends encoded user id in each push. We need to map it to our internal user_id.
   const epochs = req.body.epochs || [];
   const queuedUsers = new Map();
-  console.log("INCOMING userId values:", epochs.map(x => x.userId));
+
+  console.log("INCOMING userId values:", epochs.map((item) => item.userId));
+
   try {
     console.log("GARMIN PUSH - Heart Rate:", JSON.stringify(req.body, null, 2));
 
-    for (const e of epochs) {
-      const userId = await getUserIdFromEncodedId(e.userId);
+    for (const epoch of epochs) {
+      const userId = await getUserIdFromEncodedId(epoch.userId);
       if (!userId) continue;
 
       const created = await GarminHeartRate.create({
         user_id: userId,
-        encoded_user_id: e.userId,
-        timestamp: e.startTimeInSeconds,
-        heart_rate: e.averageHeartRateInBeatsPerMinute,
+        encoded_user_id: epoch.userId,
+        timestamp: epoch.startTimeInSeconds,
+        heart_rate: epoch.averageHeartRateInBeatsPerMinute,
         source: 'epoch'
       });
 
       if (!queuedUsers.has(userId)) {
         queuedUsers.set(userId, []);
       }
+
       queuedUsers.get(userId).push(created._id);
     }
 
@@ -188,42 +175,41 @@ async function pushHeartRateEpoch(req, res) {
     console.error("PUSH ERROR DETAILS:", err.message, err);
     logger.error("Heart Rate Push Error", err);
     void sendPushErrorAlert(req, 'heart-rate', epochs, err);
-    return res.status(200).send("OK"); // always 200 so Garmin does not retry
+    return res.status(200).send("OK");
   }
 }
 
-// ─── Push: Daily Summaries ────────────────────────────────────────────────────
 async function pushDailySummary(req, res) {
-  // Garmin sends encoded user id in each push. We need to map it to our internal user_id.
   const summaries = req.body.dailies || [];
-  console.log("INCOMING userId values:", summaries.map(x => x.userId));
+
+  console.log("INCOMING userId values:", summaries.map((item) => item.userId));
+
   try {
     console.log("GARMIN PUSH - Daily Summary:", JSON.stringify(req.body, null, 2));
 
-    for (const s of summaries) {
-      const userId = await getUserIdFromEncodedId(s.userId);
+    for (const summary of summaries) {
+      const userId = await getUserIdFromEncodedId(summary.userId);
       if (!userId) continue;
 
       await GarminDailySummary.findOneAndUpdate(
         {
           user_id: userId,
-          calendar_date: new Date(s.calendarDate)
+          calendar_date: new Date(summary.calendarDate)
         },
-
         {
           $set: {
             user_id: userId,
-            encoded_user_id: s.userId,
-            calendar_date: new Date(s.calendarDate),
-            steps: s.totalSteps,
-            distance_meters: s.totalDistanceInMeters,
-            active_kcal: s.activeKilocalories,
-            bmr_kcal: s.bmrKilocalories,
-            avg_heart_rate: s.averageHeartRateInBeatsPerMinute,
-            resting_heart_rate: s.restingHeartRateInBeatsPerMinute,
-            highest_heart_rate: s.maxHeartRateInBeatsPerMinute,
-            stress_avg: s.averageStressLevel,
-            summary_id: s.summaryId
+            encoded_user_id: summary.userId,
+            calendar_date: new Date(summary.calendarDate),
+            steps: summary.totalSteps,
+            distance_meters: summary.totalDistanceInMeters,
+            active_kcal: summary.activeKilocalories,
+            bmr_kcal: summary.bmrKilocalories,
+            avg_heart_rate: summary.averageHeartRateInBeatsPerMinute,
+            resting_heart_rate: summary.restingHeartRateInBeatsPerMinute,
+            highest_heart_rate: summary.maxHeartRateInBeatsPerMinute,
+            stress_avg: summary.averageStressLevel,
+            summary_id: summary.summaryId
           }
         },
         { upsert: true, returnDocument: 'after' }
@@ -242,30 +228,30 @@ async function pushDailySummary(req, res) {
   }
 }
 
-// ─── Push: Blood Pressure ─────────────────────────────────────────────────────
 async function pushBloodPressure(req, res) {
-  // Garmin sends encoded user id in each push. We need to map it to our internal user_id.
   const readings = req.body.bloodPressureSummaries || [];
   const queuedUsers = new Map();
-  console.log("INCOMING userId values:", readings.map(x => x.userId));
+
+  console.log("INCOMING userId values:", readings.map((item) => item.userId));
+
   try {
     console.log("GARMIN PUSH - Blood Pressure:", JSON.stringify(req.body, null, 2));
 
-    for (const bp of readings) {
-      const userId = await getUserIdFromEncodedId(bp.userId);
+    for (const reading of readings) {
+      const userId = await getUserIdFromEncodedId(reading.userId);
       if (!userId) continue;
 
       const saved = await GarminBloodPressure.findOneAndUpdate(
-        { summary_id: bp.summaryId },
+        { summary_id: reading.summaryId },
         {
           $set: {
             user_id: userId,
-            encoded_user_id: bp.userId,
-            measurement_time: bp.startTimeInSeconds,
-            systolic: bp.systolicValue,
-            diastolic: bp.diastolicValue,
-            pulse: bp.pulseValue,
-            summary_id: bp.summaryId
+            encoded_user_id: reading.userId,
+            measurement_time: reading.startTimeInSeconds,
+            systolic: reading.systolicValue,
+            diastolic: reading.diastolicValue,
+            pulse: reading.pulseValue,
+            summary_id: reading.summaryId
           }
         },
         { upsert: true, returnDocument: 'after' }
@@ -274,6 +260,7 @@ async function pushBloodPressure(req, res) {
       if (!queuedUsers.has(userId)) {
         queuedUsers.set(userId, []);
       }
+
       queuedUsers.get(userId).push(saved._id);
     }
 

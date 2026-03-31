@@ -1,5 +1,10 @@
 const { body } = require("express-validator");
 
+const emailNormalizationOptions = {
+  gmail_remove_dots: false,
+  gmail_remove_subaddress: false
+};
+
 exports.registerValidator = [
   body("fullname")
     .isLength({ min: 2 })
@@ -13,7 +18,7 @@ exports.registerValidator = [
   body("email")
     .isEmail()
     .withMessage("Must be a valid email")
-    .normalizeEmail(),
+    .normalizeEmail(emailNormalizationOptions),
 
   body("dob")
     .isISO8601()
@@ -39,8 +44,25 @@ exports.registerValidator = [
 exports.loginValidator = [
   body("email")
     .isEmail()
-    .withMessage("Must be a valid email"),
+    .withMessage("Must be a valid email")
+    .normalizeEmail(emailNormalizationOptions),
   body("password")
     .notEmpty()
     .withMessage("Password is required"),
+];
+
+exports.forgotPasswordValidator = [
+  body("email")
+    .isEmail()
+    .withMessage("Must be a valid email")
+    .normalizeEmail(emailNormalizationOptions)
+];
+
+exports.resetPasswordValidator = [
+  body("token")
+    .notEmpty()
+    .withMessage("Reset token is required"),
+  body("new_password")
+    .isLength({ min: 6 })
+    .withMessage("New password must be at least 6 characters")
 ];

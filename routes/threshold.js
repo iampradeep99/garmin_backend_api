@@ -4,7 +4,6 @@ const { authMiddleware } = require('../middlewares/authMiddleware');
 const { addThreshold, updateThreshold, getThreshold } = require('../controllers/thresholdController');
 const { validateAddThreshold, validateUpdateThreshold } = require('../validators/thresholdValidator');
 
-// All threshold routes require authentication
 router.use(authMiddleware);
 
 router.post('/', validateAddThreshold, addThreshold);

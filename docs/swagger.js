@@ -13,11 +13,11 @@ const spec = {
     ].join('\n')
   },
   servers: [
-    { url: 'http://localhost:3002', description: 'Local development' },
+    { url: 'http://localhost:3001', description: 'Local development' },
     { url: 'https://salestracking.in', description: 'Production' }
   ],
   tags: [
-    { name: 'Auth', description: 'User registration and login endpoints' },
+    { name: 'Auth', description: 'User registration, login, and password recovery endpoints' },
     { name: 'Garmin OAuth', description: 'Garmin authorization and connection state endpoints' },
     { name: 'Garmin Data', description: 'Garmin summary, heart rate, blood pressure, and alert test endpoints' },
     { name: 'Threshold', description: 'User threshold endpoints' },
@@ -52,14 +52,14 @@ spec.components.schemas.RegisterRequest = {
   type: 'object',
   required: ['fullname', 'mobile_number', 'email', 'dob', 'gender', 'height_cm', 'weight_kg', 'password'],
   properties: {
-    fullname: { type: 'string', example: 'Shashank Gupta' },
+    fullname: { type: 'string', example: 'Ansuman' },
     mobile_number: { type: 'string', example: '9876543210' },
-    email: { type: 'string', format: 'email', example: 'shashank@example.com' },
+    email: { type: 'string', format: 'email', example: 'anumant@smartping.ai' },
     dob: { type: 'string', format: 'date', example: '1996-08-15' },
     gender: { type: 'string', enum: ['M', 'F', 'O'], example: 'M' },
     height_cm: { type: 'number', example: 175 },
     weight_kg: { type: 'number', example: 72.5 },
-    password: { type: 'string', format: 'password', example: 'secret123' }
+    password: { type: 'string', format: 'password', example: 'Deep@12345' }
   }
 };
 
@@ -75,7 +75,7 @@ spec.components.schemas.RegisterResponse = {
         properties: {
           user_id: { type: 'string', example: '5273914821' },
           fullname: { type: 'string', example: 'Shashank Gupta' },
-          email: { type: 'string', example: 'shashank@example.com' }
+          email: { type: 'string', example: 'anumant@smartping.ai' }
         }
       }
     }
@@ -86,8 +86,8 @@ spec.components.schemas.LoginRequest = {
   type: 'object',
   required: ['email', 'password'],
   properties: {
-    email: { type: 'string', format: 'email', example: 'shashank@example.com' },
-    password: { type: 'string', format: 'password', example: 'secret123' }
+    email: { type: 'string', format: 'email', example: 'anumant@smartping.ai' },
+    password: { type: 'string', format: 'password', example: 'Deep@12345' }
   }
 };
 
@@ -105,6 +105,32 @@ spec.components.schemas.LoginResponse = {
         }
       }
     }
+  }
+};
+
+spec.components.schemas.ForgotPasswordRequest = {
+  type: 'object',
+  required: ['email'],
+  properties: {
+    email: { type: 'string', format: 'email', example: 'anumant@smartping.ai' }
+  }
+};
+
+spec.components.schemas.ResetPasswordRequest = {
+  type: 'object',
+  required: ['token', 'new_password'],
+  properties: {
+    token: { type: 'string', example: '9e83cb5fd3f0f8d417ff4a9c4c4fe88c2cae0d7fd70f3d53fa36bfb8b07b6d9c' },
+    new_password: { type: 'string', format: 'password', example: 'Deep@12345' }
+  }
+};
+
+spec.components.schemas.AuthMessageResponse = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'string', example: '200' },
+    statusMessage: { type: 'string', example: 'Password reset successful' },
+    data: { type: 'array', items: {} }
   }
 };
 
@@ -410,6 +436,31 @@ spec.paths['/api/auth/login'] = {
     responses: {
       200: { description: 'Login successful', content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginResponse' } } } },
       401: { description: 'Invalid credentials', content: { 'application/json': { schema: { $ref: '#/components/schemas/StandardErrorResponse' } } } }
+    }
+  }
+};
+
+spec.paths['/api/auth/forgot-password'] = {
+  post: {
+    tags: ['Auth'],
+    summary: 'Generate a password reset token and send it by email',
+    description: 'Returns a generic success response even when the email is not registered.',
+    requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ForgotPasswordRequest' } } } },
+    responses: {
+      200: { description: 'Password reset token flow accepted', content: { 'application/json': { schema: { $ref: '#/components/schemas/AuthMessageResponse' } } } },
+      400: { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/StandardErrorResponse' } } } }
+    }
+  }
+};
+
+spec.paths['/api/auth/reset-password'] = {
+  post: {
+    tags: ['Auth'],
+    summary: 'Reset password using the emailed token',
+    requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ResetPasswordRequest' } } } },
+    responses: {
+      200: { description: 'Password reset successful', content: { 'application/json': { schema: { $ref: '#/components/schemas/AuthMessageResponse' } } } },
+      400: { description: 'Invalid token or validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/StandardErrorResponse' } } } }
     }
   }
 };

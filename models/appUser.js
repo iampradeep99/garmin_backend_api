@@ -32,6 +32,18 @@ const AppUserSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true
+    },
+    reset_password_token_hash: {
+      type: String,
+      default: null
+    },
+    reset_password_expires_at: {
+      type: Date,
+      default: null
+    },
+    reset_password_requested_at: {
+      type: Date,
+      default: null
     }
   },
   {

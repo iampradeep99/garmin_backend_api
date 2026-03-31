@@ -6,50 +6,46 @@ const UserThreshold = require('../models/userThreshold');
 
 let toggle = false;
 
-// ===== SAFE RANDOM (auto adjust) =====
 const safeRand = (min, max, buffer = 5) => {
   if (max - min <= buffer * 2) {
-    return Math.floor((min + max) / 2); // fallback
+    return Math.floor((min + max) / 2);
   }
+
   return Math.floor(Math.random() * (max - min - buffer * 2 + 1)) + (min + buffer);
 };
 
-// ===== ALERT RANDOM =====
 const alertRandHigh = (max) => max + Math.floor(Math.random() * 40) + 5;
 const alertRandLow = (min) => Math.max(1, min - Math.floor(Math.random() * 30) - 5);
 
-// ===== MAIN =====
 const insertHealthData = async () => {
   try {
-    console.log("SEEDER RUN =================", new Date());
+    console.log("SEEDER RUN", new Date());
 
     const thresholds = await UserThreshold.find({}).lean();
 
-    for (const t of thresholds) {
-      const userId = t.user_id;
+    for (const threshold of thresholds) {
+      const userId = threshold.user_id;
       const encodedId = `enc-${userId}`;
 
-      let heartRate, systolic, diastolic;
+      let heartRate;
+      let systolic;
+      let diastolic;
 
       if (!toggle) {
-        // ✅ SAFE (always inside updated threshold)
-        heartRate = safeRand(t.min_heart_rate, t.max_heart_rate);
-
-        systolic = safeRand(t.min_bp, t.max_bp);
-        diastolic = safeRand(t.min_bp, t.max_bp - 5);
-
+        heartRate = safeRand(threshold.min_heart_rate, threshold.max_heart_rate);
+        systolic = safeRand(threshold.min_bp, threshold.max_bp);
+        diastolic = safeRand(threshold.min_bp, threshold.max_bp - 5);
       } else {
-        // 🚨 ALERT (outside updated threshold)
         const isHigh = Math.random() > 0.5;
 
         if (isHigh) {
-          heartRate = alertRandHigh(t.max_heart_rate);
-          systolic = alertRandHigh(t.max_bp);
-          diastolic = alertRandHigh(t.max_bp);
+          heartRate = alertRandHigh(threshold.max_heart_rate);
+          systolic = alertRandHigh(threshold.max_bp);
+          diastolic = alertRandHigh(threshold.max_bp);
         } else {
-          heartRate = alertRandLow(t.min_heart_rate);
-          systolic = alertRandLow(t.min_bp);
-          diastolic = alertRandLow(t.min_bp);
+          heartRate = alertRandLow(threshold.min_heart_rate);
+          systolic = alertRandLow(threshold.min_bp);
+          diastolic = alertRandLow(threshold.min_bp);
         }
       }
 
@@ -60,7 +56,7 @@ const insertHealthData = async () => {
         encoded_user_id: encodedId,
         timestamp: now,
         heart_rate: heartRate,
-        source: "epoch"
+        source: 'epoch'
       });
 
       await GarminBloodPressure.create({
@@ -78,27 +74,25 @@ const insertHealthData = async () => {
         SYS: systolic,
         DIA: diastolic,
         threshold: {
-          hr: `${t.min_heart_rate}-${t.max_heart_rate}`,
-          bp: `${t.min_bp}-${t.max_bp}`
+          hr: `${threshold.min_heart_rate}-${threshold.max_heart_rate}`,
+          bp: `${threshold.min_bp}-${threshold.max_bp}`
         },
-        mode: toggle ? "🚨 ALERT" : "✅ SAFE"
+        mode: toggle ? 'ALERT' : 'SAFE'
       });
     }
 
     toggle = !toggle;
-
   } catch (err) {
     console.log("SEEDER ERROR:", err);
   }
 };
 
-// ===== CRON =====
 const startSeederCron = () => {
   cron.schedule(process.env.SEEDERCRON, async () => {
     await insertHealthData();
   });
 
-  console.log("✅ Seeder Cron Started (Every 2 minutes)");
+  console.log("Seeder Cron Started");
 };
 
 module.exports = { startSeederCron };

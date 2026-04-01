@@ -130,51 +130,142 @@ async function getUserIdFromEncodedId(encodedUserId) {
   return auth.user_id;
 }
 
+// async function pushHeartRateEpoch(req, res) {
+//   const epochs = req.body.epochs || [];
+//   const queuedUsers = new Map();
+
+//   console.log("INCOMING userId values:", epochs.map((item) => item.userId));
+
+//   try {
+//     console.log("GARMIN PUSH - Heart Rate:", JSON.stringify(req.body, null, 2));
+
+//     for (const epoch of epochs) {
+//       const userId = await getUserIdFromEncodedId(epoch.userId);
+//       if (!userId) continue;
+
+//       const created = await GarminHeartRate.create({
+//         user_id: userId,
+//         encoded_user_id: epoch.userId,
+//         timestamp: epoch.startTimeInSeconds,
+//         heart_rate: epoch.averageHeartRateInBeatsPerMinute,
+//         source: 'epoch'
+//       });
+
+//       if (!queuedUsers.has(userId)) {
+//         queuedUsers.set(userId, []);
+//       }
+
+//       queuedUsers.get(userId).push(created._id);
+//     }
+
+//     for (const [userId, sourceIds] of queuedUsers.entries()) {
+//       await enqueueAlertJob({
+//         userId,
+//         metricType: 'heart_rate',
+//         source: 'garmin_push',
+//         sourceIds
+//       });
+//     }
+
+//     logger.info(`Garmin push processed: heart-rate | count=${epochs.length}`);
+//     void sendPushReceivedAlert(req, 'heart-rate', epochs);
+
+//     return res.status(200).send("OK");
+//   } catch (err) {
+//     console.error("PUSH ERROR DETAILS:", err.message, err);
+//     logger.error("Heart Rate Push Error", err);
+//     void sendPushErrorAlert(req, 'heart-rate', epochs, err);
+//     return res.status(200).send("OK");
+//   }
+// }
+
 async function pushHeartRateEpoch(req, res) {
   const epochs = req.body.epochs || [];
   const queuedUsers = new Map();
 
-  console.log("INCOMING userId values:", epochs.map((item) => item.userId));
-
   try {
     console.log("GARMIN PUSH - Heart Rate:", JSON.stringify(req.body, null, 2));
 
+    const bulkData = [];
+
     for (const epoch of epochs) {
-      const userId = await getUserIdFromEncodedId(epoch.userId);
-      if (!userId) continue;
+      try {
+        const userId = await getUserIdFromEncodedId(epoch.userId);
+        if (!userId) {
+          console.warn("User not found for encoded_user_id:", epoch.userId);
+          continue;
+        }
 
-      const created = await GarminHeartRate.create({
-        user_id: userId,
-        encoded_user_id: epoch.userId,
-        timestamp: epoch.startTimeInSeconds,
-        heart_rate: epoch.averageHeartRateInBeatsPerMinute,
-        source: 'epoch'
-      });
+        const heartRate = epoch.averageHeartRateInBeatsPerMinute;
 
-      if (!queuedUsers.has(userId)) {
-        queuedUsers.set(userId, []);
+        // ✅ Skip invalid heart rate
+        if (!heartRate || heartRate <= 0) {
+          console.warn("Skipping invalid heart rate:", {
+            userId: epoch.userId,
+            timestamp: epoch.startTimeInSeconds,
+            heartRate
+          });
+          continue;
+        }
+
+        bulkData.push({
+          user_id: userId,
+          encoded_user_id: epoch.userId,
+          timestamp: epoch.startTimeInSeconds,
+          heart_rate: heartRate,
+          source: 'epoch'
+        });
+
+      } catch (innerErr) {
+        console.error("Error processing epoch:", innerErr.message);
       }
-
-      queuedUsers.get(userId).push(created._id);
     }
 
-    for (const [userId, sourceIds] of queuedUsers.entries()) {
-      await enqueueAlertJob({
-        userId,
-        metricType: 'heart_rate',
-        source: 'garmin_push',
-        sourceIds
+    // ✅ Bulk insert
+    let createdDocs = [];
+    if (bulkData.length > 0) {
+      createdDocs = await GarminHeartRate.insertMany(bulkData, {
+        ordered: false // continue even if some fail
       });
     }
 
-    logger.info(`Garmin push processed: heart-rate | count=${epochs.length}`);
+    // ✅ Group by user for queue
+    for (const doc of createdDocs) {
+      if (!queuedUsers.has(doc.user_id)) {
+        queuedUsers.set(doc.user_id, []);
+      }
+      queuedUsers.get(doc.user_id).push(doc._id);
+    }
+
+    // ✅ Queue jobs
+    for (const [userId, sourceIds] of queuedUsers.entries()) {
+      try {
+        await enqueueAlertJob({
+          userId,
+          metricType: 'heart_rate',
+          source: 'garmin_push',
+          sourceIds
+        });
+      } catch (queueErr) {
+        console.error("Queue error:", queueErr.message);
+      }
+    }
+
+    logger.info(
+      `Garmin push processed: heart-rate | received=${epochs.length} | saved=${createdDocs.length}`
+    );
+
     void sendPushReceivedAlert(req, 'heart-rate', epochs);
 
     return res.status(200).send("OK");
+
   } catch (err) {
     console.error("PUSH ERROR DETAILS:", err.message, err);
     logger.error("Heart Rate Push Error", err);
+
     void sendPushErrorAlert(req, 'heart-rate', epochs, err);
+
+    // Garmin expects 200 always
     return res.status(200).send("OK");
   }
 }

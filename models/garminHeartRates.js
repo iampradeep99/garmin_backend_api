@@ -17,9 +17,10 @@ const GarminHeartRateSchema = new mongoose.Schema(
       required: true
     },
     heart_rate: {
-      type: Number,
-      required: true
-    },
+  type: Number,
+  required: true,
+  min: 1
+},
     source: {
       type: String,
       enum: ['epoch', 'daily'],

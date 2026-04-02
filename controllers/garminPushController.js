@@ -284,12 +284,24 @@ async function pushHeartRateEpoch(req, res) {
 
 
 
-function parseHeartRateSamples(str) {
+function parseHeartRateSamples(input) {
   try {
-    if (!str) return [];
+    if (!input) return [];
 
-    const fixed = str.replace(/(\d+):/g, '"$1":');
-    const obj = JSON.parse(fixed);
+    let obj;
+
+    // case 1: already object (Garmin actual payload)
+    if (typeof input === 'object') {
+      obj = input;
+    }
+
+    // case 2: string (old/broken format)
+    else if (typeof input === 'string') {
+      const fixed = input.replace(/(\d+):/g, '"$1":');
+      obj = JSON.parse(fixed);
+    } else {
+      return [];
+    }
 
     return Object.entries(obj).map(([key, value]) => ({
       offset: Number(key),
@@ -351,8 +363,12 @@ async function pushDailySummary(req, res) {
             avg_heart_rate: summary.averageHeartRateInBeatsPerMinute,
             resting_heart_rate: summary.restingHeartRateInBeatsPerMinute,
 
-            // ✅ BOTH STORED
-            heart_rate_samples: summary.timeOffsetHeartRateSamples,
+            // ✅ FIX: always store string safely
+            heart_rate_samples: summary.timeOffsetHeartRateSamples
+              ? JSON.stringify(summary.timeOffsetHeartRateSamples)
+              : null,
+
+            // ✅ parsed array for querying
             heart_rate_samples_array: parsedSamples,
 
             steps_goal: summary.stepsGoal,

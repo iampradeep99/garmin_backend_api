@@ -32,8 +32,10 @@ const GarminDailySummarySchema = new mongoose.Schema(
     avg_heart_rate: { type: Number },
     resting_heart_rate: { type: Number },
 
+    // ✅ FIXED (string storage)
     heart_rate_samples: { type: String },
 
+    // ✅ query-friendly
     heart_rate_samples_array: [
       {
         offset: Number,

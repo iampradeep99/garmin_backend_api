@@ -6,12 +6,14 @@ const {verifyGarminWebhook} = require('../middlewares/verifyGarminWebhook')
 const {
  pushHeartRateEpoch,
  pushDailySummary, 
- pushBloodPressure
+ pulseOx,
+ userMetrics
 } = require('../controllers/garminPushController');
 
 
 router.post('/heart-rate',  pushHeartRateEpoch);
 router.post('/summary',  pushDailySummary);
-router.post('/bp',  pushBloodPressure);
+router.post('/spo2',  pulseOx);
+router.post('/userMetrics',userMetrics)
 
 module.exports = router;

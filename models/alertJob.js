@@ -9,7 +9,7 @@ const AlertJobSchema = new mongoose.Schema(
     },
     metric_type: {
       type: String,
-      enum: ['heart_rate', 'blood_pressure'],
+      enum: ['heart_rate', 'blood_pressure','spo2'],
       required: true,
       index: true
     },

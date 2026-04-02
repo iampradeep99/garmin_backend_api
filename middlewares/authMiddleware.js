@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 async function authMiddleware(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
+    console.log(authHeader)
 
     if (!authHeader) {
       return sendResponse(res, "401", "Authorization header missing", []);
@@ -23,6 +24,8 @@ async function authMiddleware(req, res, next) {
     }
 
     const decoded = await jwtService.verifyToken(token);
+    console.log(decoded)
+
 
     if (!decoded || !decoded.user_id) {
       return sendResponse(res, "401", "Invalid or expired token", []);
@@ -36,6 +39,7 @@ async function authMiddleware(req, res, next) {
 
     return next();
   } catch (err) {
+    console.log(err)
     logger.error('Auth middleware error', err);
     return sendResponse(res, "401", "Unauthorized", []);
   }

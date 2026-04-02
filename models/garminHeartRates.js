@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const GarminHeartRateSchema = new mongoose.Schema(
   {
+    // 🔑 USER IDENTIFICATION
     user_id: {
       type: Number,
       required: true,
@@ -13,73 +14,94 @@ const GarminHeartRateSchema = new mongoose.Schema(
       index: true
     },
 
-    // ✅ Core fields (system use)
+    // 🕒 CORE TIME FIELD (MOST IMPORTANT)
     timestamp: {
-      type: Number,
-      required: true
-    },
-    heart_rate: {
-      type: Number,
-      required: false,
-      min: 1
+      type: Number, // UNIX timestamp (seconds)
+      required: true,
+      index: true
     },
 
-    // ✅ Garmin fields
-    summary_id: {
-      type: String
+    // ❤️ HEART RATE
+    heart_rate: {
+      type: Number,
+      min: 1,
+      required: true
     },
+
+    // 📅 CONTEXT
     calendar_date: {
-      type: String
+      type: String, // "YYYY-MM-DD"
+      index: true
     },
+
+    // 🔗 SUMMARY LINKING
+    summary_id: {
+      type: String,
+      index: true
+    },
+
     duration_in_seconds: {
       type: Number
     },
+
     start_time_offset_in_seconds: {
       type: Number
     },
 
-    // ✅ Summary details
+    // 📊 SUMMARY STATS
     min_heart_rate: {
       type: Number
     },
     max_heart_rate: {
       type: Number
     },
+
+    // 🧾 RAW STORAGE
     epoch_summaries: {
       type: String
     },
-    epoch_summary_array: [
-  {
-    second: Number,
-    minute: Number,
-    heart_rate: Number,
-    timestamp: Number
-  }
-],
 
-    // ✅ Full raw payload
+    // ⚡ STRUCTURED ARRAY (optional but powerful)
+    epoch_summary_array: [
+      {
+        second: Number,
+        minute: Number,
+        heart_rate: Number,
+        timestamp: Number
+      }
+    ],
+
+    // 📦 FULL PAYLOAD (DEBUGGING / TRACE)
     raw_payload: {
       type: Object
     },
 
+    // 📡 SOURCE TRACKING
     source: {
       type: String,
       enum: ['epoch', 'daily', 'summary'],
-      default: 'summary'
+      default: 'summary',
+      index: true
     }
   },
   {
-    collection: 'garmin_heart_rate',
+    collection: 'garmin_user_heart_rates',
     timestamps: true
   }
 );
 
-// ✅ Index (same as your original)
+
+// 🔥 MOST IMPORTANT (duplicate prevention)
 GarminHeartRateSchema.index(
-  { user_id: 1, timestamp: 1 }
+  { user_id: 1, timestamp: 1 },
+  { unique: true }
 );
 
+
+// ⚡ PERFORMANCE INDEXES
+
+
 module.exports = mongoose.model(
-  'GarminHeartRate',
+  'GarminHeartRate',   // ✅ correct model name
   GarminHeartRateSchema
 );

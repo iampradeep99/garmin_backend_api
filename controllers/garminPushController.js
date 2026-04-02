@@ -8,7 +8,7 @@ const GarminDailySummary = require('../models/garmindailySummary');
 const { sendGarminAlertEmail } = require('../common/garminAlertMail');
 const { enqueueAlertJob } = require('../services/alertJobService');
 const GarminUserMetrics = require('../models/garminuserMetrics')
-
+const  GarminHeartRateSchema = require('../models/garminHeartRates')
 function formatDateTime(value = new Date()) {
   return new Date(value).toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -290,13 +290,9 @@ function parseHeartRateSamples(input) {
 
     let obj;
 
-    // case 1: already object (Garmin actual payload)
     if (typeof input === 'object') {
       obj = input;
-    }
-
-    // case 2: string (old/broken format)
-    else if (typeof input === 'string') {
+    } else if (typeof input === 'string') {
       const fixed = input.replace(/(\d+):/g, '"$1":');
       obj = JSON.parse(fixed);
     } else {
@@ -313,6 +309,61 @@ function parseHeartRateSamples(input) {
   }
 }
 
+
+async function saveHeartRateSamples({
+  userId,
+  encodedUserId,
+  calendarDate,
+  summary,
+  samples
+}) {
+  if (!samples || samples.length === 0) return;
+
+  try {
+    const baseDate = new Date(calendarDate).setHours(0, 0, 0, 0);
+
+    const docs = samples.map(s => {
+      const timestamp = Math.floor((baseDate + (s.offset * 1000)) / 1000);
+
+      return {
+        user_id: userId,
+        encoded_user_id: encodedUserId,
+
+        timestamp,
+        heart_rate: s.value,
+
+        summary_id: summary.summaryId,
+        calendar_date: summary.calendarDate,
+        duration_in_seconds: summary.durationInSeconds,
+        start_time_offset_in_seconds: summary.startTimeOffsetInSeconds,
+
+        min_heart_rate: summary.minHeartRateInBeatsPerMinute,
+        max_heart_rate: summary.maxHeartRateInBeatsPerMinute,
+
+        epoch_summaries: summary.timeOffsetHeartRateSamples
+          ? JSON.stringify(summary.timeOffsetHeartRateSamples)
+          : null,
+
+        raw_payload: summary,
+        source: 'summary'
+      };
+    });
+
+    await GarminHeartRate.insertMany(docs, {
+      ordered: false
+    });
+
+  } catch (err) {
+    if (err.code === 11000) {
+      console.log("Duplicate skipped");
+    } else {
+      console.error("Insert error:", err);
+    }
+  }
+}
+
+
+
 async function pushDailySummary(req, res) {
   const summaries = req.body.dailies || [];
 
@@ -326,6 +377,14 @@ async function pushDailySummary(req, res) {
       if (!userId) continue;
 
       const parsedSamples = parseHeartRateSamples(summary.timeOffsetHeartRateSamples);
+
+      await saveHeartRateSamples({
+        userId,
+        encodedUserId: summary.userId,
+        calendarDate: summary.calendarDate,
+        summary: summary,   
+        samples: parsedSamples
+      });
 
       await GarminDailySummary.findOneAndUpdate(
         {
@@ -363,12 +422,10 @@ async function pushDailySummary(req, res) {
             avg_heart_rate: summary.averageHeartRateInBeatsPerMinute,
             resting_heart_rate: summary.restingHeartRateInBeatsPerMinute,
 
-            // ✅ FIX: always store string safely
             heart_rate_samples: summary.timeOffsetHeartRateSamples
               ? JSON.stringify(summary.timeOffsetHeartRateSamples)
               : null,
 
-            // ✅ parsed array for querying
             heart_rate_samples_array: parsedSamples,
 
             steps_goal: summary.stepsGoal,
@@ -390,13 +447,12 @@ async function pushDailySummary(req, res) {
             body_battery_drained: summary.bodyBatteryDrainedValue,
 
             source: summary.source,
-
             summary_id: summary.summaryId
           }
         },
         {
           upsert: true,
-          new: true
+          returnDocument: 'after' 
         }
       );
     }
@@ -414,9 +470,6 @@ async function pushDailySummary(req, res) {
     return res.status(200).send("OK");
   }
 }
-
-
-
 async function pulseOx(req, res) {
   const readings = req.body || [];
   const queuedUsers = new Map();

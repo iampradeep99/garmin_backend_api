@@ -77,7 +77,7 @@ const GarminDailySummarySchema = new mongoose.Schema(
 
 GarminDailySummarySchema.index(
   { user_id: 1, calendar_date: 1 },
-  { unique: true }
+ 
 );
 
 module.exports = mongoose.model(

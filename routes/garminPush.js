@@ -13,7 +13,6 @@ const {
 
 router.post('/heart-rate',  pushHeartRateEpoch);
 router.post('/summary',  pushDailySummary);
-router.post('/spo2',  pulseOx);
-router.post('/userMetrics',userMetrics)
+
 
 module.exports = router;

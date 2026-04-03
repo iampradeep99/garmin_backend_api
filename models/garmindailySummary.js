@@ -32,10 +32,8 @@ const GarminDailySummarySchema = new mongoose.Schema(
     avg_heart_rate: { type: Number },
     resting_heart_rate: { type: Number },
 
-    // ✅ FIXED (string storage)
     heart_rate_samples: { type: String },
 
-    // ✅ query-friendly
     heart_rate_samples_array: [
       {
         offset: Number,
@@ -63,11 +61,7 @@ const GarminDailySummarySchema = new mongoose.Schema(
 
     source: { type: String },
 
-    summary_id: {
-      type: String,
-      unique: true,
-      sparse: true
-    }
+    summary_id: { type: String, sparse: true }
   },
   {
     collection: 'garmin_daily_summary',
@@ -75,12 +69,6 @@ const GarminDailySummarySchema = new mongoose.Schema(
   }
 );
 
-GarminDailySummarySchema.index(
-  { user_id: 1, calendar_date: 1 },
- 
-);
+GarminDailySummarySchema.index({ user_id: 1, calendar_date: 1 });
 
-module.exports = mongoose.model(
-  'GarminDailySummary',
-  GarminDailySummarySchema
-);
+module.exports = mongoose.model('GarminDailySummary', GarminDailySummarySchema);

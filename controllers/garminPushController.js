@@ -1,5 +1,3 @@
-
-
 const logger = require('../utils/logger');
 const GarminAuth = require('../models/garminAuthModel');
 const GarminSpo2Schema = require('../models/garminBloodPressure');
@@ -7,8 +5,9 @@ const GarminHeartRate = require('../models/garminHeartRates');
 const GarminDailySummary = require('../models/garmindailySummary');
 const { sendGarminAlertEmail } = require('../common/garminAlertMail');
 const { enqueueAlertJob } = require('../services/alertJobService');
-const GarminUserMetrics = require('../models/garminuserMetrics')
-const  GarminHeartRateSchema = require('../models/garminHeartRates')
+const GarminUserMetrics = require('../models/garminuserMetrics');
+const GarminHeartRateSchema = require('../models/garminHeartRates');
+
 function formatDateTime(value = new Date()) {
   return new Date(value).toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -38,7 +37,6 @@ function getRequestMeta(req, pushType, records) {
   };
 }
 
-// ✅ UPDATED (payload added)
 function buildHtmlFromMeta(title, meta, extraLine = '', payload = null) {
   const userIdText = meta.userIds.length ? meta.userIds.join(', ') : 'No userId found';
 
@@ -53,7 +51,6 @@ function buildHtmlFromMeta(title, meta, extraLine = '', payload = null) {
       <p><strong>Received At:</strong> ${meta.receivedAt}</p>
       <p><strong>User IDs:</strong> ${userIdText}</p>
       ${extraLine ? `<p><strong>Details:</strong> ${extraLine}</p>` : ''}
-
       ${
         payload
           ? `<h3>Raw Payload</h3>
@@ -66,7 +63,6 @@ ${JSON.stringify(payload, null, 2)}
   `;
 }
 
-// ✅ UPDATED (payload pass)
 async function sendPushReceivedAlert(req, pushType, records) {
   const meta = getRequestMeta(req, pushType, records);
   const subject = `Garmin Push Received - ${pushType}`;
@@ -85,12 +81,7 @@ async function sendPushReceivedAlert(req, pushType, records) {
   const result = await sendGarminAlertEmail({
     subject,
     text,
-    html: buildHtmlFromMeta(
-      'Garmin push request received successfully.',
-      meta,
-      '',
-      req.body // ✅ payload added
-    )
+    html: buildHtmlFromMeta('Garmin push request received successfully.', meta, '', req.body)
   });
 
   if (!result.success) {
@@ -118,12 +109,7 @@ async function sendPushErrorAlert(req, pushType, records, error) {
   const result = await sendGarminAlertEmail({
     subject,
     text,
-    html: buildHtmlFromMeta(
-      'Garmin push request failed while processing.',
-      meta,
-      errorMessage,
-      req.body // ✅ payload added here also
-    )
+    html: buildHtmlFromMeta('Garmin push request failed while processing.', meta, errorMessage, req.body)
   });
 
   if (!result.success) {
@@ -154,8 +140,6 @@ async function getUserIdFromEncodedId(encodedUserId) {
   return auth.user_id;
 }
 
-
-
 function parseEpochSummaries(epochString, baseTimestamp) {
   if (!epochString) return [];
 
@@ -181,8 +165,6 @@ async function pushHeartRateEpoch(req, res) {
   try {
     console.log("GARMIN PUSH - Heart Rate:", JSON.stringify(req.body, null, 2));
 
-    const bulkData = [];
-
     for (const record of records) {
       try {
         const userId = await getUserIdFromEncodedId(record.userId);
@@ -196,58 +178,41 @@ async function pushHeartRateEpoch(req, res) {
         for (const summary of record.summaries) {
           if (summary.summaryType !== 'heart_rate') continue;
 
-          const heartRate = summary.avgValue;
+          const timestamp = record.startTimeInSeconds;
+          const heartRate = summary.avgValue ?? null;
 
-          bulkData.push({
+          if (!heartRate) continue;
+
+          const existing = await GarminHeartRate.findOne({
+            user_id: userId,
+            timestamp,
+            heart_rate: heartRate
+          }).lean();
+
+          if (existing) {
+            console.log(`Duplicate skipped for user=${userId} timestamp=${timestamp}`);
+            continue;
+          }
+
+          const doc = await GarminHeartRate.create({
             user_id: userId,
             encoded_user_id: record.userId,
-            timestamp: record.startTimeInSeconds,
-            heart_rate: heartRate ?? null,
-
-            summary_id: record.summaryId,
-            calendar_date: record.calendarDate,
-            duration_in_seconds: record.durationInSeconds,
-
-            start_time_offset_in_seconds: record.startTimeOffsetInSeconds,
-            start_time_offset_in_minutes: record.startTimeOffsetInSeconds / 60,
-
-            min_heart_rate: summary.minValue,
-            max_heart_rate: summary.maxValue,
-
-            // ✅ KEEP ORIGINAL STRING
-            epoch_summaries: summary.epochSummaries,
-
-            // ✅ ADD PARSED ARRAY
-            epoch_summary_array: parseEpochSummaries(
-              summary.epochSummaries,
-              record.startTimeInSeconds
-            ),
-
-            raw_payload: record,
-            source: 'epoch'
+            timestamp,
+            heart_rate: heartRate,
+            timestamp_time: formatDateTime(new Date(timestamp * 1000)),
+            date: record.calendarDate,
+            insertedAt: new Date()
           });
+
+          if (!queuedUsers.has(userId)) {
+            queuedUsers.set(userId, []);
+          }
+          queuedUsers.get(userId).push(doc._id);
         }
 
       } catch (innerErr) {
         console.error("Error processing epoch:", innerErr.message);
       }
-    }
-
-    let createdDocs = [];
-    if (bulkData.length > 0) {
-      createdDocs = await GarminHeartRate.insertMany(bulkData, {
-        ordered: false
-      });
-    }
-
-    for (const doc of createdDocs) {
-      if (!doc.heart_rate) continue;
-
-      if (!queuedUsers.has(doc.user_id)) {
-        queuedUsers.set(doc.user_id, []);
-      }
-
-      queuedUsers.get(doc.user_id).push(doc._id);
     }
 
     for (const [userId, sourceIds] of queuedUsers.entries()) {
@@ -263,10 +228,7 @@ async function pushHeartRateEpoch(req, res) {
       }
     }
 
-    logger.info(
-      `Garmin push processed: heart-rate | received=${records.length} | saved=${createdDocs.length}`
-    );
-
+    logger.info(`Garmin push processed: heart-rate | received=${records.length}`);
     void sendPushReceivedAlert(req, 'heart-rate', records);
 
     return res.status(200).send("OK");
@@ -274,15 +236,11 @@ async function pushHeartRateEpoch(req, res) {
   } catch (err) {
     console.error("PUSH ERROR DETAILS:", err.message, err);
     logger.error("Heart Rate Push Error", err);
-
     void sendPushErrorAlert(req, 'heart-rate', records, err);
 
     return res.status(200).send("OK");
   }
 }
-
-
-
 
 function parseHeartRateSamples(input) {
   try {
@@ -309,60 +267,41 @@ function parseHeartRateSamples(input) {
   }
 }
 
-
-async function saveHeartRateSamples({
-  userId,
-  encodedUserId,
-  calendarDate,
-  summary,
-  samples
-}) {
+async function saveHeartRateSamples({ userId, encodedUserId, calendarDate, samples }) {
   if (!samples || samples.length === 0) return;
 
   try {
     const baseDate = new Date(calendarDate).setHours(0, 0, 0, 0);
 
-    const docs = samples.map(s => {
+    for (const s of samples) {
       const timestamp = Math.floor((baseDate + (s.offset * 1000)) / 1000);
 
-      return {
+      const existing = await GarminHeartRate.findOne({
+        user_id: userId,
+        timestamp,
+        heart_rate: s.value
+      }).lean();
+
+      if (existing) {
+        console.log(`Duplicate skipped for user=${userId} timestamp=${timestamp}`);
+        continue;
+      }
+
+      await GarminHeartRate.create({
         user_id: userId,
         encoded_user_id: encodedUserId,
-
         timestamp,
         heart_rate: s.value,
-
-        summary_id: summary.summaryId,
-        calendar_date: summary.calendarDate,
-        duration_in_seconds: summary.durationInSeconds,
-        start_time_offset_in_seconds: summary.startTimeOffsetInSeconds,
-
-        min_heart_rate: summary.minHeartRateInBeatsPerMinute,
-        max_heart_rate: summary.maxHeartRateInBeatsPerMinute,
-
-        epoch_summaries: summary.timeOffsetHeartRateSamples
-          ? JSON.stringify(summary.timeOffsetHeartRateSamples)
-          : null,
-
-        raw_payload: summary,
-        source: 'summary'
-      };
-    });
-
-    await GarminHeartRate.insertMany(docs, {
-      ordered: false
-    });
+        timestamp_time: formatDateTime(new Date(timestamp * 1000)),
+        date: calendarDate,
+        insertedAt: new Date()
+      });
+    }
 
   } catch (err) {
-    if (err.code === 11000) {
-      console.log("Duplicate skipped");
-    } else {
-      console.error("Insert error:", err);
-    }
+    console.error("Insert error:", err);
   }
 }
-
-
 
 async function pushDailySummary(req, res) {
   const summaries = req.body.dailies || [];
@@ -382,7 +321,6 @@ async function pushDailySummary(req, res) {
         userId,
         encodedUserId: summary.userId,
         calendarDate: summary.calendarDate,
-        summary: summary,   
         samples: parsedSamples
       });
 
@@ -397,30 +335,30 @@ async function pushDailySummary(req, res) {
             encoded_user_id: summary.userId,
             calendar_date: new Date(summary.calendarDate),
 
-            activity_type: summary.activityType,
+            activity_type: summary.activityType ?? null,
 
-            active_kcal: summary.activeKilocalories,
-            bmr_kcal: summary.bmrKilocalories,
+            active_kcal: summary.activeKilocalories ?? null,
+            bmr_kcal: summary.bmrKilocalories ?? null,
 
-            steps: summary.steps,
-            pushes: summary.pushes,
-            distance_meters: summary.distanceInMeters,
-            push_distance_meters: summary.pushDistanceInMeters,
+            steps: summary.steps ?? null,
+            pushes: summary.pushes ?? null,
+            distance_meters: summary.distanceInMeters ?? null,
+            push_distance_meters: summary.pushDistanceInMeters ?? null,
 
-            duration_seconds: summary.durationInSeconds,
-            active_time_seconds: summary.activeTimeInSeconds,
-            start_time_seconds: summary.startTimeInSeconds,
-            start_time_offset_seconds: summary.startTimeOffsetInSeconds,
+            duration_seconds: summary.durationInSeconds ?? null,
+            active_time_seconds: summary.activeTimeInSeconds ?? null,
+            start_time_seconds: summary.startTimeInSeconds ?? null,
+            start_time_offset_seconds: summary.startTimeOffsetInSeconds ?? null,
 
-            moderate_intensity_seconds: summary.moderateIntensityDurationInSeconds,
-            vigorous_intensity_seconds: summary.vigorousIntensityDurationInSeconds,
+            moderate_intensity_seconds: summary.moderateIntensityDurationInSeconds ?? null,
+            vigorous_intensity_seconds: summary.vigorousIntensityDurationInSeconds ?? null,
 
-            floors_climbed: summary.floorsClimbed,
+            floors_climbed: summary.floorsClimbed ?? null,
 
-            min_heart_rate: summary.minHeartRateInBeatsPerMinute,
-            max_heart_rate: summary.maxHeartRateInBeatsPerMinute,
-            avg_heart_rate: summary.averageHeartRateInBeatsPerMinute,
-            resting_heart_rate: summary.restingHeartRateInBeatsPerMinute,
+            min_heart_rate: summary.minHeartRateInBeatsPerMinute ?? null,
+            max_heart_rate: summary.maxHeartRateInBeatsPerMinute ?? null,
+            avg_heart_rate: summary.averageHeartRateInBeatsPerMinute ?? null,
+            resting_heart_rate: summary.restingHeartRateInBeatsPerMinute ?? null,
 
             heart_rate_samples: summary.timeOffsetHeartRateSamples
               ? JSON.stringify(summary.timeOffsetHeartRateSamples)
@@ -428,31 +366,34 @@ async function pushDailySummary(req, res) {
 
             heart_rate_samples_array: parsedSamples,
 
-            steps_goal: summary.stepsGoal,
-            pushes_goal: summary.pushesGoal,
-            intensity_goal_seconds: summary.intensityDurationGoalInSeconds,
-            floors_goal: summary.floorsClimbedGoal,
+            steps_goal: summary.stepsGoal ?? null,
+            pushes_goal: summary.pushesGoal ?? null,
+            intensity_goal_seconds: summary.intensityDurationGoalInSeconds ?? null,
+            floors_goal: summary.floorsClimbedGoal ?? null,
 
-            stress_avg: summary.averageStressLevel,
-            stress_max: summary.maxStressLevel,
-            stress_duration_seconds: summary.stressDurationInSeconds,
-            rest_stress_duration_seconds: summary.restStressDurationInSeconds,
-            activity_stress_duration_seconds: summary.activityStressDurationInSeconds,
-            low_stress_duration_seconds: summary.lowStressDurationInSeconds,
-            medium_stress_duration_seconds: summary.mediumStressDurationInSeconds,
-            high_stress_duration_seconds: summary.highStressDurationInSeconds,
-            stress_qualifier: summary.stressQualifier,
+            stress_avg: summary.averageStressLevel ?? null,
+            stress_max: summary.maxStressLevel ?? null,
+            stress_duration_seconds: summary.stressDurationInSeconds ?? null,
+            rest_stress_duration_seconds: summary.restStressDurationInSeconds ?? null,
+            activity_stress_duration_seconds: summary.activityStressDurationInSeconds ?? null,
+            low_stress_duration_seconds: summary.lowStressDurationInSeconds ?? null,
+            medium_stress_duration_seconds: summary.mediumStressDurationInSeconds ?? null,
+            high_stress_duration_seconds: summary.highStressDurationInSeconds ?? null,
+            stress_qualifier: summary.stressQualifier ?? null,
 
-            body_battery_charged: summary.bodyBatteryChargedValue,
-            body_battery_drained: summary.bodyBatteryDrainedValue,
+            body_battery_charged: summary.bodyBatteryChargedValue ?? null,
+            body_battery_drained: summary.bodyBatteryDrainedValue ?? null,
 
-            source: summary.source,
-            summary_id: summary.summaryId
+            source: summary.source ?? null,
+            summary_id: summary.summaryId ?? null,
+
+            updatedAt: new Date()
           }
         },
         {
           upsert: true,
-          returnDocument: 'after' 
+          new: true,
+          strict: false
         }
       );
     }
@@ -470,157 +411,8 @@ async function pushDailySummary(req, res) {
     return res.status(200).send("OK");
   }
 }
-async function pulseOx(req, res) {
-  const readings = req.body || [];
-  const queuedUsers = new Map();
-
-  console.log("INCOMING userId values:", readings.map((item) => item.userId));
-
-  try {
-    console.log("GARMIN PUSH - SPO2:", JSON.stringify(req.body, null, 2));
-
-    for (const reading of readings) {
-      const userId = await getUserIdFromEncodedId(reading.userId);
-      if (!userId) continue;
-
-      // ✅ PARSE FUNCTION INLINE
-      let spo2Array = [];
-      try {
-        if (reading.timeOffsetSpo2Values) {
-          const cleaned = reading.timeOffsetSpo2Values
-            .replace(/^{|}$/g, '')
-            .replace(/\.\.\./g, '');
-
-          spo2Array = cleaned
-            .split(',')
-            .map(pair => {
-              const [k, v] = pair.split(':');
-
-              const offset = parseInt(k?.trim(), 10);
-              const value = parseInt(v?.trim(), 10);
-
-              if (isNaN(offset) || isNaN(value)) return null;
-
-              return { offset, value };
-            })
-            .filter(Boolean);
-        }
-      } catch (e) {
-        console.error("SPO2 PARSE ERROR:", e);
-      }
-
-      const saved = await GarminSpo2Schema.findOneAndUpdate(
-        { summary_id: reading.summaryId },
-        {
-          $set: {
-            user_id: userId,
-            encoded_user_id: reading.userId,
-            summary_id: reading.summaryId,
-
-            calendar_date: reading.calendarDate,
-            start_time: reading.startTimeInSeconds,
-            duration: reading.durationInSeconds,
-            offset: reading.startTimeOffsetInSeconds,
-            on_demand: reading.onDemand,
-
-            // ✅ STORE BOTH
-            spo2_string: reading.timeOffsetSpo2Values,
-            spo2_array: spo2Array
-          }
-        },
-        { upsert: true, returnDocument: 'after' }
-      );
-
-      if (!queuedUsers.has(userId)) {
-        queuedUsers.set(userId, []);
-      }
-
-      queuedUsers.get(userId).push(saved._id);
-    }
-
-    for (const [userId, sourceIds] of queuedUsers.entries()) {
-      await enqueueAlertJob({
-        userId,
-        metricType: 'spo2', // ✅ changed
-        source: 'garmin_push',
-        sourceIds
-      });
-    }
-
-    logger.info(`Garmin push processed: spo2 | count=${readings.length}`);
-    void sendPushReceivedAlert(req, 'spo2', readings);
-
-    return res.status(200).send("OK");
-
-  } catch (err) {
-    console.error("PUSH ERROR DETAILS:", err.message, err);
-    logger.error("SPO2 Push Error", err);
-    void sendPushErrorAlert(req, 'spo2', readings, err);
-
-    return res.status(200).send("OK");
-  }
-}
-
-
-async function userMetrics(req, res) {
-  const metrics = req.body || [];
-
-  console.log("INCOMING userMetrics:", JSON.stringify(metrics, null, 2));
-
-  try {
-    for (const item of metrics) {
-      const {
-        userId,
-        summaryId,
-        calendarDate,
-        vo2Max,
-        vo2MaxCycling,
-        fitnessAge,
-        enhanced
-      } = item;
-
-      const user_id = await getUserIdFromEncodedId(userId);
-
-      if (!user_id) {
-        console.log(`User not found for encoded_user_id: ${userId}`);
-        continue;
-      }
-
-      await GarminUserMetrics.updateOne(
-        { summary_id: summaryId }, // unique check
-        {
-          $set: {
-            user_id,
-            encoded_user_id: userId,
-            summary_id: summaryId,
-            calendar_date: new Date(calendarDate),
-            vo2_max: vo2Max,
-            vo2_max_cycling: vo2MaxCycling,
-            fitness_age: fitnessAge,
-            enhanced: enhanced
-          }
-        },
-        { upsert: true }
-      );
-    }
-
-   return res.status(200).send("OK");
-
-  } catch (error) {
-    console.error("Error storing user metrics:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-      error: error.message
-    });
-  }
-}
-
 
 module.exports = {
   pushHeartRateEpoch,
-  pushDailySummary,
-  pulseOx,
-  userMetrics
+  pushDailySummary
 };

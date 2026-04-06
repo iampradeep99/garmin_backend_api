@@ -251,7 +251,16 @@ function parseHeartRateSamples(input) {
     if (typeof input === 'object') {
       obj = input;
     } else if (typeof input === 'string') {
-      const fixed = input.replace(/(\d+):/g, '"$1":');
+      // Handle Garmin format: "{15: 75, 30: 75, ...}" or "15: 75, 30: 75"
+      let parsed = input.trim();
+      
+      // If it starts with { and ends with }, it's already an object-like string
+      if (parsed.startsWith('{') && parsed.endsWith('}')) {
+        parsed = parsed.slice(1, -1); // Remove curly braces
+      }
+      
+      // Convert "15: 75" format to JSON "15": 75 format
+      const fixed = '{' + parsed.replace(/(\d+):\s*/g, '"$1": ') + '}';
       obj = JSON.parse(fixed);
     } else {
       return [];
@@ -304,7 +313,8 @@ async function saveHeartRateSamples({ userId, encodedUserId, calendarDate, sampl
 }
 
 async function pushDailySummary(req, res) {
-  const summaries = req.body.dailies || [];
+  // Garmin sends array directly, not wrapped in 'dailies'
+  const summaries = Array.isArray(req.body) ? req.body : (req.body.dailies || []);
 
   console.log("INCOMING userId values:", summaries.map(i => i.userId));
 

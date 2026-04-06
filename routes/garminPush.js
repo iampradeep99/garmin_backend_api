@@ -5,14 +5,16 @@ const {verifyGarminWebhook} = require('../middlewares/verifyGarminWebhook')
 
 const {
  pushHeartRateEpoch,
- pushDailySummary, 
- pulseOx,
- userMetrics
+ pushDailySummary
 } = require('../controllers/garminPushController');
 
 
-router.post('/heart-rate',  pushHeartRateEpoch);
-router.post('/summary',  pushDailySummary);
+// TODO: Re-enable middleware after testing
+// router.post('/heart-rate', verifyGarminWebhook, pushHeartRateEpoch);
+// router.post('/summary', verifyGarminWebhook, pushDailySummary);
+
+router.post('/heart-rate', pushHeartRateEpoch);
+router.post('/summary', pushDailySummary);
 
 
 module.exports = router;

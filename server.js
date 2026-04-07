@@ -3,6 +3,7 @@ const axios = require('axios');
 const debug = require('debug')('garminproject:server');
 const createError = require('http-errors');
 const express = require('express');
+const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
@@ -44,6 +45,9 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(cors({
+  origin: '*'
+}));
 
 const publicPath = path.join(process.cwd(), 'public');
 app.use(express.static(publicPath));

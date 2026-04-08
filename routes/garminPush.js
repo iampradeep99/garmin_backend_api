@@ -11,8 +11,7 @@ const {
 
 
 // TODO: Re-enable middleware after testing
-// router.post('/heart-rate', verifyGarminWebhook, pushHeartRateEpoch);
-// router.post('/summary', verifyGarminWebhook, pushDailySummary);
+
 
 router.post('/heart-rate', pushHeartRateEpoch);
 router.post('/summary', pushDailySummary);

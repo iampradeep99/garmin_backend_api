@@ -251,25 +251,25 @@ function parseHeartRateSamples(input) {
     if (typeof input === 'object') {
       obj = input;
     } else if (typeof input === 'string') {
-      // Handle Garmin format: "{15: 75, 30: 75, ...}" or "15: 75, 30: 75"
       let parsed = input.trim();
       
-      // If it starts with { and ends with }, it's already an object-like string
       if (parsed.startsWith('{') && parsed.endsWith('}')) {
-        parsed = parsed.slice(1, -1); // Remove curly braces
+        parsed = parsed.slice(1, -1); 
       }
       
-      // Convert "15: 75" format to JSON "15": 75 format
       const fixed = '{' + parsed.replace(/(\d+):\s*/g, '"$1": ') + '}';
       obj = JSON.parse(fixed);
     } else {
       return [];
     }
 
-    return Object.entries(obj).map(([key, value]) => ({
-      offset: Number(key),
-      value: Number(value)
-    }));
+    return Object.entries(obj)
+      .map(([key, value]) => ({
+        offset: Number(key),
+        value: Number(value)
+      }))
+      .filter((item) => Number.isFinite(item.offset) && Number.isFinite(item.value))
+      .sort((a, b) => a.offset - b.offset);
   } catch (err) {
     console.error("Heart rate parse error:", err);
     return [];
@@ -277,7 +277,9 @@ function parseHeartRateSamples(input) {
 }
 
 async function saveHeartRateSamples({ userId, encodedUserId, calendarDate, samples }) {
-  if (!samples || samples.length === 0) return;
+  if (!samples || samples.length === 0) return [];
+
+  const sourceIds = [];
 
   try {
     const baseDate = new Date(calendarDate).setHours(0, 0, 0, 0);
@@ -293,10 +295,11 @@ async function saveHeartRateSamples({ userId, encodedUserId, calendarDate, sampl
 
       if (existing) {
         console.log(`Duplicate skipped for user=${userId} timestamp=${timestamp}`);
+        sourceIds.push(existing._id);
         continue;
       }
 
-      await GarminHeartRate.create({
+      const created = await GarminHeartRate.create({
         user_id: userId,
         encoded_user_id: encodedUserId,
         timestamp,
@@ -305,16 +308,29 @@ async function saveHeartRateSamples({ userId, encodedUserId, calendarDate, sampl
         date: calendarDate,
         insertedAt: new Date()
       });
+
+      sourceIds.push(created._id);
     }
 
   } catch (err) {
     console.error("Insert error:", err);
   }
+
+  return sourceIds;
+}
+
+function getLatestSample(samples) {
+  if (!Array.isArray(samples) || !samples.length) {
+    return null;
+  }
+
+  return samples[samples.length - 1];
 }
 
 async function pushDailySummary(req, res) {
   // Garmin sends array directly, not wrapped in 'dailies'
   const summaries = Array.isArray(req.body) ? req.body : (req.body.dailies || []);
+  const latestReadingIdsByUser = new Map();
 
   console.log("INCOMING userId values:", summaries.map(i => i.userId));
 
@@ -327,12 +343,26 @@ async function pushDailySummary(req, res) {
 
       const parsedSamples = parseHeartRateSamples(summary.timeOffsetHeartRateSamples);
 
-      await saveHeartRateSamples({
+      const sourceIds = await saveHeartRateSamples({
         userId,
         encodedUserId: summary.userId,
         calendarDate: summary.calendarDate,
         samples: parsedSamples
       });
+
+      const latestSample = getLatestSample(parsedSamples);
+
+      if (latestSample && sourceIds.length) {
+        const latestIndex = parsedSamples.findIndex(
+          (sample) => sample.offset === latestSample.offset && sample.value === latestSample.value
+        );
+
+        const latestSourceId = latestIndex >= 0 ? sourceIds[latestIndex] : sourceIds[sourceIds.length - 1];
+
+        if (latestSourceId) {
+          latestReadingIdsByUser.set(userId, String(latestSourceId));
+        }
+      }
 
       await GarminDailySummary.findOneAndUpdate(
         {
@@ -408,6 +438,15 @@ async function pushDailySummary(req, res) {
       );
     }
 
+    for (const [userId, latestSourceId] of latestReadingIdsByUser.entries()) {
+      await enqueueAlertJob({
+        userId,
+        metricType: 'heart_rate',
+        source: 'garmin_daily_summary',
+        sourceIds: [latestSourceId]
+      });
+    }
+
     logger.info(`Garmin push processed: summary | count=${summaries.length}`);
     void sendPushReceivedAlert(req, 'summary', summaries);
 
@@ -434,13 +473,13 @@ async function summaryDetails(req, res) {
     `;
 
     await sendGarminAlertEmail({
-      to: "pradeep.meadev@gmail.com",
+      to: "pradeep.meandev@gmail.com",
       subject: "Garmin Test Data",
       text,
       html
     });
 
-    res.send({ success: true, message: "Email sent successfully" });
+  return res.status(200).send("OK");
 
   } catch (err) {
     console.log(err);

@@ -13,6 +13,7 @@ const logger = require('./logger');
 const swaggerDocument = require('./docs/swagger');
 const { startAlertJobWorker } = require('./services/alertJobService');
 const { startSeederCron } = require('./crons/seederCron');
+const { startHealthCron } = require('./crons/healthAlertCron');
 const { connectMongo } = require('./database/mongo');
 
 connectMongo();
@@ -31,6 +32,10 @@ const statusPublicUrl = process.env.STATUS_PUBLIC_URL || 'http://localhost:3005/
 
 startSeederCron();
 startAlertJobWorker();
+
+if (process.env.HEALTH_CRON_ENABLED === 'true') {
+  startHealthCron();
+}
 
 const app = express();
 

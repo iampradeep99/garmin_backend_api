@@ -2,7 +2,6 @@ const cron = require('node-cron');
 
 const User = require('../models/appUser');
 const GarminHeartRateSchema = require('../models/garminHeartRates');
-const GarminBloodPressureSchema = require('../models/garminBloodPressure');
 const UserThreshold = require('../models/userThreshold');
 const AlertLog = require('../models/alertLog');
 const { sendEmail } = require('../common/mail');
@@ -21,10 +20,6 @@ const runHealthCheck = async () => {
         console.log("Checking user:", userId);
 
         const latestHR = await GarminHeartRateSchema.findOne({ user_id: userId })
-          .sort({ createdAt: -1 })
-          .lean();
-
-        const latestBP = await GarminBloodPressureSchema.findOne({ user_id: userId })
           .sort({ createdAt: -1 })
           .lean();
 
@@ -52,33 +47,6 @@ const runHealthCheck = async () => {
           }
         } else {
           console.log("No HR data");
-        }
-
-        if (latestBP) {
-          const sys = Number(latestBP.systolic);
-          const dia = Number(latestBP.diastolic);
-
-          if (!isNaN(sys)) {
-            if (sys > threshold.max_bp) {
-              alerts.push(`High BP Systolic (${sys})`);
-              alertTypes.push("HIGH_BP");
-            } else if (sys < threshold.min_bp) {
-              alerts.push(`Low BP Systolic (${sys})`);
-              alertTypes.push("LOW_BP");
-            }
-          }
-
-          if (!isNaN(dia)) {
-            if (dia > threshold.max_bp) {
-              alerts.push(`High BP Diastolic (${dia})`);
-              alertTypes.push("HIGH_BP");
-            } else if (dia < threshold.min_bp) {
-              alerts.push(`Low BP Diastolic (${dia})`);
-              alertTypes.push("LOW_BP");
-            }
-          }
-        } else {
-          console.log("No BP data");
         }
 
         if (alerts.length === 0) {
@@ -136,7 +104,7 @@ const runHealthCheck = async () => {
           mobile: threshold.alert_mobile || null,
           message: combinedMessage,
           alert_type: [...new Set(alertTypes)].join(','),
-          reference_id: latestHR?._id || latestBP?._id || null,
+          reference_id: latestHR?._id || null,
           email_sent: emailStatus,
           sms_sent: smsStatus,
           delivery_status: deliveryStatus,
@@ -156,6 +124,11 @@ const runHealthCheck = async () => {
 
 const startHealthCron = () => {
   console.log("STARTING CRON");
+
+  if (!process.env.HEALTHCRON) {
+    console.log("HEALTHCRON is not configured");
+    return;
+  }
 
   cron.schedule(process.env.HEALTHCRON, async () => {
     console.log("CRON TRIGGERED");

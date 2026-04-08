@@ -2,7 +2,6 @@ const axios = require('axios');
 
 const logger = require('../utils/logger');
 const GarminAuth = require('../models/garminAuthModel');
-const GarminBloodPressure = require('../models/garminBloodPressure');
 const GarminHeartRate = require('../models/garminHeartRates');
 const GarminDailySummary = require('../models/garmindailySummary');
 const { refreshGarminToken } = require('../services/garminService');
@@ -275,32 +274,6 @@ async function storeSummaryRecords(records, authRecord) {
   return sourceIds;
 }
 
-async function storeBloodPressureRecords(records, authRecord) {
-  const sourceIds = [];
-
-  for (const record of records) {
-    const saved = await GarminBloodPressure.findOneAndUpdate(
-      { summary_id: record.summaryId },
-      {
-        $set: {
-          user_id: authRecord.user_id,
-          encoded_user_id: record.userId || authRecord.encoded_user_id || authRecord.connected_garmin_user_id,
-          measurement_time: record.startTimeInSeconds,
-          systolic: record.systolicValue,
-          diastolic: record.diastolicValue,
-          pulse: record.pulseValue,
-          summary_id: record.summaryId
-        }
-      },
-      { upsert: true, returnDocument: 'after' }
-    );
-
-    sourceIds.push(saved._id);
-  }
-
-  return sourceIds;
-}
-
 async function processNotification(notification, pingType) {
   const authRecord = await findAuthRecord({
     encodedUserId: notification?.userId,
@@ -335,15 +308,7 @@ async function processNotification(notification, pingType) {
   }
 
   if (pingType === 'bp') {
-    const records = extractRecords(callbackData, 'bloodPressureSummaries');
-    const sourceIds = await storeBloodPressureRecords(records, authRecord);
-    await enqueueAlertJob({
-      userId: authRecord.user_id,
-      metricType: 'blood_pressure',
-      source: 'garmin_ping',
-      sourceIds
-    });
-    logger.info(`Garmin ping processed: bp | user=${authRecord.user_id} | count=${records.length}`);
+    logger.info(`Garmin ping ignored: bp | user=${authRecord.user_id}`);
   }
 }
 

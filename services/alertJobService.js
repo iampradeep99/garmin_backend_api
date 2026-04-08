@@ -147,6 +147,7 @@ async function processJob(job) {
         status: 'completed',
         last_error: null
       });
+      logger.info(`Alert job completed: ${job.dedupe_key} | delivery=${result.deliveryStatus || 'unknown'}`);
       return;
     }
 
@@ -154,6 +155,7 @@ async function processJob(job) {
       status: 'skipped',
       last_error: result.reason || null
     });
+    logger.info(`Alert job skipped: ${job.dedupe_key} | reason=${result.reason || 'unknown'}`);
   } catch (error) {
     const retryable = job.attempts < job.max_attempts;
     const nextRun = new Date(Date.now() + getRetryDelayMs(job.attempts));
@@ -172,12 +174,12 @@ async function workerLoop(slot) {
   for (;;) {
     try {
       const job = await claimNextJob();
-
       if (!job) {
         await sleep(POLL_MS);
         continue;
       }
 
+      logger.info(`Alert job claimed [slot=${slot}]: ${job.dedupe_key} | attempt=${job.attempts}/${job.max_attempts}`);
       await processJob(job);
     } catch (error) {
       logger.error(`Alert job worker loop error [${slot}]`, error);

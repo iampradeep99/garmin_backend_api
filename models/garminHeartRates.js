@@ -14,7 +14,6 @@ const GarminHeartRateSchema = new mongoose.Schema(
     timestamp: {
       type: Number,
       required: true,
-      index: true
     },
     heart_rate: {
       type: Number,
@@ -26,7 +25,6 @@ const GarminHeartRateSchema = new mongoose.Schema(
     },
     date: {
       type: String,
-      index: true
     },
     insertedAt: {
       type: Date,

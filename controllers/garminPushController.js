@@ -422,7 +422,34 @@ async function pushDailySummary(req, res) {
   }
 }
 
+async function summaryDetails(req, res) {
+  try {
+    const payload = req.body;
+
+    const text = JSON.stringify(payload, null, 2);
+
+    const html = `
+      <h3>Garmin Test Data</h3>
+      <pre>${text}</pre>
+    `;
+
+    await sendGarminAlertEmail({
+      to: "pradeep.meadev@gmail.com",
+      subject: "Garmin Test Data",
+      text,
+      html
+    });
+
+    res.send({ success: true, message: "Email sent successfully" });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).send({ success: false, message: "Error sending email" });
+  }
+}
+
 module.exports = {
   pushHeartRateEpoch,
-  pushDailySummary
+  pushDailySummary,
+  summaryDetails
 };
